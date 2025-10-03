@@ -11,8 +11,8 @@
 ### 1. Клонирование репозитория
 
 ```bash
-git clone https://github.com/ваш_юзернейм/ваш_репозиторий.git
-cd ваш_репозиторий
+git clone https://github.com/udlch/5verst-cup.git
+cd 5verst-cup
 ```
 
 ### 2. Запуск скрипта установки
