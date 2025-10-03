@@ -27,7 +27,7 @@
             --switch-bg-color: #4e4f50;
         }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: var(--bg-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; }
-        .container { padding: 15px; }
+        .main-wrapper { max-width: 1200px; margin: 0 auto; padding: 15px; }
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; }
         .what-is-this a { 
             display: inline-block;
@@ -42,7 +42,7 @@
             font-weight: bold;
             font-size: 1em;
         }
-        .controls-bar { position: sticky; top: 0; z-index: 100; background-color: var(--bg-color); padding: 10px 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .controls-bar { position: sticky; top: 0; z-index: 100; background-color: var(--bg-color); padding: 10px 0; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .filters-group { display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
         .switch-container { display: flex; align-items: center; gap: 8px; font-size: 0.9em; font-weight: 600; color: var(--subtle-text-color); white-space: nowrap; }
         .switch { position: relative; display: inline-block; width: 34px; height: 20px; flex-shrink: 0; }
@@ -56,7 +56,7 @@
         .filters-content { display: none; justify-content: center; gap: 8px; padding: 10px; background-color: var(--bg-color); border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 6px 6px; }
         .filters-content.active { display: flex; flex-wrap: nowrap; overflow-x: auto; }
         .filters-content select { -webkit-appearance: none; -moz-appearance: none; appearance: none; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--card-bg-color); color: var(--text-color); font-weight: 600; cursor: pointer; }
-        .links-menu-container { position: relative; flex-shrink: 0; }
+        .links-menu-container { position: relative; flex-shrink: 0; margin-left: auto; }
         #linksMenuToggle { background: none; border: none; cursor: pointer; font-family: inherit; font-size: 0.9em; font-weight: 600; color: var(--subtle-text-color); padding: 8px; white-space: nowrap; }
         #linksMenuToggle .mobile-only { display: none; font-size: 1.5em; line-height: 1; }
         .links-menu-dropdown { display: none; position: absolute; top: 110%; right: 0; background-color: var(--card-bg-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; min-width: 220px; overflow: hidden; border: 1px solid var(--border-color);}
@@ -84,6 +84,17 @@
         footer { text-align: center; padding: 20px 15px; font-size: 0.75em; color: var(--subtle-text-color); opacity: 0.8; }
         footer a { color: inherit; }
 
+        /* Custom Searchable Dropdown */
+        .custom-dropdown-container { position: relative; display: inline-block; }
+        .dropdown-selected-text { font-size: 0.9em; font-weight: normal; color: var(--subtle-text-color); cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+        .dropdown-selected-text:hover { background-color: var(--hover-bg-color); }
+        .dropdown-options { display: none; position: absolute; top: 110%; left: 0; background-color: var(--card-bg-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; width: 300px; border: 1px solid var(--border-color); }
+        .dropdown-options.active { display: block; }
+        #location-search-input { width: 100%; box-sizing: border-box; padding: 12px; border: none; border-bottom: 1px solid var(--border-color); font-size: 1em; background-color: var(--card-bg-color); color: var(--text-color); }
+        #location-options-list { max-height: 300px; overflow-y: auto; }
+        #location-options-list a { display: block; padding: 12px 15px; text-decoration: none; color: var(--text-color); }
+        #location-options-list a:hover { background-color: var(--hover-bg-color); }
+
         /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
         .modal.active { display: flex; align-items: center; justify-content: center; }
@@ -91,17 +102,6 @@
         .modal-close-btn { color: var(--subtle-text-color); position: absolute; top: 5px; right: 15px; font-size: 28px; font-weight: bold; cursor: pointer; }
         .modal-content p { font-size: 0.9em; color: var(--subtle-text-color); line-height: 1.5; }
         .modal-content p a { color: var(--text-color); text-decoration: underline dotted; }
-
-        /* Custom Searchable Dropdown */
-        .custom-dropdown-container { position: relative; display: inline-block; }
-        .dropdown-selected-text { font-size: 0.9em; font-weight: normal; color: var(--subtle-text-color); cursor: pointer; padding: 4px 8px; border-radius: 6px; }
-        .dropdown-selected-text:hover { background-color: var(--hover-bg-color); }
-        .dropdown-options { display: none; position: absolute; top: 110%; left: 50%; transform: translateX(-50%); background-color: var(--card-bg-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; width: 300px; border: 1px solid var(--border-color); }
-        .dropdown-options.active { display: block; }
-        #location-search-input { width: 100%; box-sizing: border-box; padding: 12px; border: none; border-bottom: 1px solid var(--border-color); font-size: 1em; background-color: var(--card-bg-color); color: var(--text-color); }
-        #location-options-list { max-height: 300px; overflow-y: auto; }
-        #location-options-list a { display: block; padding: 12px 15px; text-decoration: none; color: var(--text-color); }
-        #location-options-list a:hover { background-color: var(--hover-bg-color); }
 
         @media (max-width: 768px) {
             #linksMenuToggle .desktop-only { display: none; }
@@ -115,88 +115,86 @@
 </head>
 <body>
     <div class="main-wrapper">
-        <div class="container">
-            <div class="top-bar">
-                <div id="location-selector-container" class="custom-dropdown-container">
-                    <div id="locationSelector" class="dropdown-selected-text">Загрузка...</div>
-                    <div id="location-selector-dropdown" class="dropdown-options">
-                        <input type="text" id="location-search-input" placeholder="Поиск локации...">
-                        <div id="location-options-list"></div>
-                    </div>
-                </div>
-                <div class="what-is-this"><a href="#" id="whatIsThisLink">?</a></div>
-            </div>
-            <div class="controls-bar">
-                <div class="filters-group">
-                    <div class="switch-container">
-                        <label class="switch">
-                            <input type="checkbox" id="seasonToggle">
-                            <span class="slider"></span>
-                        </label>
-                        <span id="currentSeasonLabel">Текущий сезон</span>
-                    </div>
-                    <div class="switch-container">
-                        <label class="switch">
-                            <input type="checkbox" id="detailedViewToggle">
-                            <span class="slider"></span>
-                        </label>
-                        <span>Подробно</span>
-                    </div>
-                </div>
-                <div class="links-menu-container">
-                    <button id="linksMenuToggle">
-                        <span class="desktop-only">Полезные ссылки ▾</span>
-                        <span class="mobile-only">☰</span>
-                    </button>
-                    <div id="linksMenu" class="links-menu-dropdown">
-                        <!-- Links are populated by JS -->
-                    </div>
+        <div class="top-bar">
+            <div id="location-selector-container" class="custom-dropdown-container">
+                <div id="locationSelector" class="dropdown-selected-text">Загрузка...</div>
+                <div id="location-selector-dropdown" class="dropdown-options">
+                    <input type="text" id="location-search-input" placeholder="Поиск локации...">
+                    <div id="location-options-list"></div>
                 </div>
             </div>
-            
-            <div class="filters-collapsible">
-                <div id="filtersHeader" class="filters-header" onclick="toggleFilters()">Фильтры ▾</div>
-                <div id="filtersContent" class="filters-content">
-                    <select id="yearSelector"></select>
-                    <select id="seasonSelector"></select>
-                    <select id="monthSelector"></select>
-                    <select id="raceSelector"></select>
-                </div>
-            </div>
-
-            <div id="fastestRecord" class="fastest-record"></div>
-            <div id="loading"></div>
-
-            <table id="leaderboardTable" style="display:none;">
-                <thead></thead>
-                <tbody id="leaderboardBody"></tbody>
-            </table>
+            <div class="what-is-this"><a href="#" id="whatIsThisLink">?</a></div>
         </div>
-
-        <div id="infoModal" class="modal">
-            <div class="modal-content">
-                <span class="modal-close-btn">&times;</span>
-                <p>Ты на странице проекта "Кубок 5вёрст". Проект не связан с 5verst.ru и носит развлекательный характер.</p>
-                <p>По умолчанию таблица выдает данные за текущий сезон, но ты можешь выбрать любой период времени по своему желанию.</p>
-                <p>Очки участников считаются на основании показателя <a href="#" id="ageGradeLink" class="sortable">age grade</a>, присвоенных системой 5 вёрст по результатам каждого забега.</p>
-                <p>Медали участников отражают их место в каждом отдельном забеге: для мальчиков в общем зачете, а для девочек индивидуально по девочкам.</p>
-                <p>На основании присвоенных участникам очков определяется пара победителей. Ты можешь видеть 🏆 рядом с их именами.</p>
-                <p>В подробной выдаче также видны лучшее и среднее время участника за выбранный период, количество медалей, забегов и волонтерств.</p>
-                <p>Если заметили ошибки или хотите поддержать проект пишите на <a href="mailto:cup5v@udlch.ru">cup5v@udlch.ru</a></p>
+        <div class="controls-bar">
+            <div class="filters-group">
+                <div class="switch-container">
+                    <label class="switch">
+                        <input type="checkbox" id="seasonToggle">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="currentSeasonLabel">Текущий сезон</span>
+                </div>
+                <div class="switch-container">
+                    <label class="switch">
+                        <input type="checkbox" id="detailedViewToggle">
+                        <span class="slider"></span>
+                    </label>
+                    <span>Подробно</span>
+                </div>
+            </div>
+            <div class="links-menu-container">
+                <button id="linksMenuToggle">
+                    <span class="desktop-only">Полезные ссылки ▾</span>
+                    <span class="mobile-only">☰</span>
+                </button>
+                <div id="linksMenu" class="links-menu-dropdown">
+                    <!-- Links are populated by JS -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="filters-collapsible">
+            <div id="filtersHeader" class="filters-header">Фильтры ▾</div>
+            <div id="filtersContent" class="filters-content">
+                <select id="yearSelector"></select>
+                <select id="seasonSelector"></select>
+                <select id="monthSelector"></select>
+                <select id="raceSelector"></select>
             </div>
         </div>
 
-        <div id="ageGradeModal" class="modal">
-            <div class="modal-content">
-                <span class="modal-close-btn">&times;</span>
-                <p>Возрастной рейтинг (age grade) — это относительное сравнение результата участника и мирового рекорда с учетом его возраста и пола. Рейтинг рассчитывается в соответствии с формулами parkrun.</p>
-            </div>
-        </div>
+        <div id="fastestRecord" class="fastest-record"></div>
+        <div id="loading"></div>
 
-        <footer>
-            Проект не связан с 5verst.ru. По техническим вопросам и вопросам поддержки проекта пишите на <a href="mailto:cup5v@udlch.ru">cup5v@udlch.ru</a>
-        </footer>
+        <table id="leaderboardTable" style="display:none;">
+            <thead></thead>
+            <tbody id="leaderboardBody"></tbody>
+        </table>
     </div>
+
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close-btn">&times;</span>
+            <p>Ты на странице проекта "Кубок 5вёрст". Проект не связан с 5verst.ru и носит развлекательный характер.</p>
+            <p>По умолчанию таблица выдает данные за текущий сезон, но ты можешь выбрать любой период времени по своему желанию.</p>
+            <p>Очки участников считаются на основании показателя <a href="#" id="ageGradeLink">age grade</a>, присвоенных системой 5 вёрст по результатам каждого забега.</p>
+            <p>Медали участников отражают их место в каждом отдельном забеге: для мальчиков в общем зачете, а для девочек индивидуально по девочкам.</p>
+            <p>На основании присвоенных участников очков определяется пара победителей. Ты можешь видеть 🏆 рядом с их именами.</p>
+            <p>В подробной выдаче также видны лучшее и среднее время участника за выбранный период, количество медалей, забегов и волонтерств.</p>
+            <p>Если заметили ошибки или хотите поддержать проект пишите на <a href="mailto:cup5v@udlch.ru">cup5v@udlch.ru</a> и запишитесь волонтером на ваш старт 5 вёрст на эту субботу.</p>
+        </div>
+    </div>
+
+    <div id="ageGradeModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close-btn">&times;</span>
+            <p>Возрастной рейтинг (age grade) — это относительное сравнение результата участника и мирового рекорда с учетом его возраста и пола. Рейтинг рассчитывается в соответствии с формулами parkrun.</p>
+        </div>
+    </div>
+
+    <footer>
+        Проект не связан с 5verst.ru. По техническим вопросам и вопросам поддержки проекта пишите на <a href="mailto:cup5v@udlch.ru">cup5v@udlch.ru</a>
+    </footer>
 
     <script>
         let fullLeaderboard = [], viewLeaderboard = [], allRaces = [], allLocations = [];
@@ -237,7 +235,7 @@
         });
 
         function setupEventListeners() {
-            // Main menus
+            // Menus
             document.getElementById('linksMenuToggle').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('linksMenu').classList.toggle('active'); });
             document.getElementById('locationSelector').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('location-selector-dropdown').classList.toggle('active'); });
             window.addEventListener('click', () => { 
@@ -270,6 +268,9 @@
                 if (e.target === infoModal) infoModal.classList.remove('active');
                 if (e.target === ageGradeModal) ageGradeModal.classList.remove('active');
             });
+
+            // Table interaction
+            document.getElementById('leaderboardTable').addEventListener('click', handleTableClick);
         }
 
         function loadInitialData() {
@@ -332,9 +333,10 @@
 
         function populateLinksMenu(location) {
             const menu = document.getElementById('linksMenu');
+            const baseUrl = location.url.endsWith('/') ? location.url : location.url + '/';
             let menuHTML = `
-                <a href="${location.url}" target="_blank">${location.name}</a>
-                <a href="${location.url}results/latest/" target="_blank">Последние результаты</a>
+                <a href="${baseUrl}" target="_blank">${location.name}</a>
+                <a href="${baseUrl}results/latest/" target="_blank">Последние результаты</a>
             `;
             if (location.slug === 'korolev') {
                 menuHTML += `<a href="https://disk.yandex.ru/edit/d/FsfuvgE_NySnDP1WFnZO8CPegnqahzm72s0qoIz-cKg6NFBQM18xb2laZw" target="_blank">Табличка волонтёрств</a>`;
@@ -470,9 +472,9 @@
         function renderHeaders() {
             const thead = document.querySelector('#leaderboardTable thead');
             thead.innerHTML = `<tr>
-                <th onclick="sortTable(0)">#</th>
-                <th id="nameHeaderCell" onclick="showSearchInput(this, 'Участник')"><span>Участник</span></th>
-                <th onclick="sortTable(2)">Очки</th>
+                <th data-sort-column="0">#</th>
+                <th id="nameHeaderCell"><span>Участник</span></th>
+                <th data-sort-column="2">Очки</th>
             </tr>`;
         }
 
@@ -495,13 +497,29 @@
             const raceNumHTML = (isShowingBestTime && runner.best_time_race_number) ? ` (#${runner.best_time_race_number})` : '';
             const medals = `<span class="medal-gold">${runner.gold_medals}</span>-<span class="medal-silver">${runner.silver_medals}</span>-<span class="medal-bronze">${runner.bronze_medals}</span>`;
             return `<div class="sub-info">
-                <span class="info-block"><span class="sortable" onclick="sortTable(3)">забегов</span> ${runner.run_count}</span>
-                <span class="info-block"><span class="sortable" onclick="sortTable(4)">• волонтерств</span> ${runner.volunteer_count}</span>
-                <span class="info-block">• <span class="sortable" onclick="toggleTimeDisplay()">${timeLabel} время</span>: <span class="sortable" onclick="sortTable(5)">${timeFormatted}${raceNumHTML}</span></span>
-                <span class="info-block"><span class="sortable" onclick="sortTable(6)">• медали</span>: ${medals}</span>
+                <span class="info-block"><span class="sortable" data-sort-column="3">забегов</span> ${runner.run_count}</span>
+                <span class="info-block"><span class="sortable" data-sort-column="4">• волонтерств</span> ${runner.volunteer_count}</span>
+                <span class="info-block">• <span class="sortable" id="timeLabel">${timeLabel} время</span>: <span class="sortable" data-sort-column="5">${timeFormatted}${raceNumHTML}</span></span>
+                <span class="info-block"><span class="sortable" data-sort-column="6">• медали</span>: ${medals}</span>
             </div>`;
         }
         
+        function handleTableClick(e) {
+            const sortable = e.target.closest('[data-sort-column]');
+            if (sortable) {
+                sortTable(parseInt(sortable.dataset.sortColumn, 10));
+                return;
+            }
+            if (e.target.id === 'timeLabel') {
+                toggleTimeDisplay();
+                return;
+            }
+            const nameHeader = e.target.closest('#nameHeaderCell');
+            if (nameHeader) {
+                showSearchInput(nameHeader, 'Участник');
+            }
+        }
+
         function showSearchInput(cell, defaultText) {
             if (cell.querySelector('input')) return;
             cell.onclick = null;
@@ -512,7 +530,6 @@
         function hideSearchInput(input, defaultText) {
             const cell = input.parentElement;
             cell.innerHTML = `<span>${defaultText}</span>`;
-            cell.onclick = () => showSearchInput(cell, defaultText);
         }
 
         function onSearchInput(event) {
