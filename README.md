@@ -17,20 +17,20 @@ cd 5verst-cup
 
 ### 2. Запуск скрипта установки
 
-    ```bash
-    chmod +x install.sh
-    ```
+```bash
+chmod +x install.sh
+```
 
-Вариант А: Для всех локаций** (может занять много времени)
+* *** Вариант А: Для всех локаций** (может занять много времени)
     
-        ```bash
-        sudo ./install.sh
-        ```
+```bash
+sudo ./install.sh
+```
 
 Вариант Б: Только для одной локации** (например, Королёв)
-        ```bash
-        sudo ./install.sh --korolev
-        ```
+```bash
+sudo ./install.sh --korolev
+```
 
 ### После установки
 
