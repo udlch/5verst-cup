@@ -4,9 +4,8 @@
 # Убедитесь, что вы запускаете его из директории, в которой лежит папка проекта.
 
 # --- Переменные --- #
-PROJECT_DIR_NAME="verst_analyzer"
-# Определяем абсолютный путь к директории проекта
-PROJECT_DIR=$(realpath "$PROJECT_DIR_NAME")
+# Определяем абсолютный путь к директории, где находится сам скрипт
+PROJECT_DIR=$(cd "$(dirname "$0")" && pwd)
 # Определяем имя пользователя, от которого запускается скрипт
 RUN_USER=$(whoami)
 
@@ -24,18 +23,20 @@ echo_red() {
 
 echo_green "Начинаем установку анализатора 5 вёрст..."
 
-# Проверка, что директория проекта существует
-if [ ! -d "$PROJECT_DIR" ]; then
-    echo_red "Ошибка: Директория проекта '$PROJECT_DIR' не найдена. Убедитесь, что скрипт находится рядом с папкой проекта."
-    exit 1
-fi
+# Остановка существующего сервиса, чтобы освободить файлы
+echo "Останавливаем возможный запущенный сервис..."
+sudo systemctl stop verst_analyzer.service
 
 # Шаг 1: Создание виртуального окружения
-echo_green "\nШаг 1: Создание виртуального окружения..."
-python3 -m venv --copies "$PROJECT_DIR/venv"
-if [ $? -ne 0 ]; then
-    echo_red "Не удалось создать виртуальное окружение. Убедитесь, что у вас установлен пакет python3-venv."
-    exit 1
+if [ ! -d "$PROJECT_DIR/venv" ]; then
+    echo_green "\nШаг 1: Создание виртуального окружения..."
+    python3 -m venv --copies "$PROJECT_DIR/venv"
+    if [ $? -ne 0 ]; then
+        echo_red "Не удалось создать виртуальное окружение. Убедитесь, что у вас установлен пакет python3-venv."
+        exit 1
+    fi
+else
+    echo_green "\nШаг 1: Виртуальное окружение уже существует, пропускаем."
 fi
 
 # Шаг 2: Установка зависимостей
@@ -47,7 +48,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Шаг 3: Сбор данных
-echo_green "\nШаг 3: Первичный сбор данных..."
+echo_green "\nШаг 3: Запуск сбора данных в фоновом режиме..."
 SCRAPE_FLAG="--full"
 LOCATION_SLUG=""
 
@@ -60,17 +61,35 @@ if [ $# -gt 0 ]; then
     fi
 fi
 
-"$PROJECT_DIR/venv/bin/python" "$PROJECT_DIR/main.py" "$SCRAPE_FLAG"
-if [ $? -ne 0 ]; then
-    echo_red "Сбор данных завершился с ошибкой."
-    exit 1
-fi
-echo_green "Сбор данных успешно завершен."
+# Запускаем в фоне через nohup
+COMMAND_TO_RUN="\"$PROJECT_DIR/venv/bin/python\" \"$PROJECT_DIR/main.py\" \"$SCRAPE_FLAG\""
+nohup bash -c "$COMMAND_TO_RUN" > "$PROJECT_DIR/scraper.log" 2>&1 &
+
+echo "Сбор данных запущен в фоновом режиме."
+echo "Процесс может занять много времени."
+echo "Чтобы следить за ходом выполнения, используйте команду:"
+echo "tail -f $PROJECT_DIR/scraper.log"
 
 # Шаг 4: Настройка systemd
 echo_green "\nШаг 4: Настройка системного сервиса (systemd)..."
 
-SERVICE_FILE_CONTENT="[Unit]\nDescription=Gunicorn instance to serve verst_analyzer\nAfter=network.target\n\n[Service]\nUser=$RUN_USER\nGroup=$RUN_USER\nWorkingDirectory=$PROJECT_DIR\nEnvironment=\"PATH=$PROJECT_DIR/venv/bin\"\nExecStart=$PROJECT_DIR/venv/bin/gunicorn --workers 3 --bind unix:$PROJECT_DIR/verst_analyzer.sock -m 007 app:app\n\n[Install]\nWantedBy=multi-user.target"
+# Используем Heredoc для надежного формирования файла
+SERVICE_FILE_CONTENT=$(cat <<EOF
+[Unit]
+Description=Gunicorn instance to serve verst_analyzer
+After=network.target
+
+[Service]
+User=$RUN_USER
+Group=$RUN_USER
+WorkingDirectory=$PROJECT_DIR
+Environment="PATH=$PROJECT_DIR/venv/bin"
+ExecStart=$PROJECT_DIR/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8001 app:app
+
+[Install]
+WantedBy=multi-user.target
+EOF
+)
 
 echo "$SERVICE_FILE_CONTENT" | sudo tee /etc/systemd/system/verst_analyzer.service > /dev/null
 

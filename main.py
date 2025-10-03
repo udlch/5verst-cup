@@ -24,15 +24,17 @@ def get_all_locations():
     soup = BeautifulSoup(response.text, 'html.parser')
     locations = []
     seen_slugs = set()
-    content_area = soup.find(class_='post-content')
-    if not content_area:
-        print("Warning: Could not find content area on events page. Falling back to all links.")
-        content_area = soup
 
-    for link in content_area.find_all('a', href=True):
+    container = soup.find('div', class_='events-columns')
+    if not container:
+        print("Fatal: Could not find the 'events-columns' container.")
+        return []
+
+    for link in container.find_all('a', href=True):
         url = link['href']
         name = link.text.strip()
-        if name and '5verst.ru' in url and '/events' not in url:
+
+        if name and '5verst.ru' in url:
             try:
                 path = url.split('5verst.ru/')[1]
                 slug = path.strip('/')
@@ -75,7 +77,7 @@ def get_race_list_for_location(location_slug):
     return race_list
 
 def get_results_from_url(url):
-    """Downloads and parses a single race results page for runners and volunteers, including their IDs."""
+    """Downloads and parses a single race results page."""
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
         response = requests.get(url, headers=headers, timeout=15)
@@ -128,23 +130,22 @@ def parse_html_for_results(html_content):
             if name_tag:
                 try:
                     v_id = int(name_tag['href'].split('/')[-1])
-                    if not any(v['id'] == v_id for v in volunteers):
+                    if not any(v['id'] == v_id for v in volunteers): 
                         volunteers.append({'id': v_id, 'name': name_tag.text.strip()})
                 except (ValueError, IndexError, AttributeError): continue
     
     return {'runners': runners, 'volunteers': volunteers}
 
 def process_race(race, location_slug):
-    """Worker function to process a single race: fetch, parse, and save."""
+    """Worker function to process a single race."""
     print(f"  - Проверка: {race['date']} (№{race['number']})...")
     html_content = get_results_from_url(race['url'])
     if html_content:
         scraped_data = parse_html_for_results(html_content)
         if scraped_data and (scraped_data.get('runners') or scraped_data.get('volunteers')):
             db_manager.save_results(DB_PATH, race['date'], location_slug, race['number'], scraped_data)
-            print(f"    -> Сохранено: {len(scraped_data['runners'])} бегунов, {len(scraped_data['volunteers'])} волонтеров.")
+            print(f"    -> Сохранено: {race['date']} ({location_slug}) - {len(scraped_data['runners'])} бегунов, {len(scraped_data['volunteers'])} волонтеров.")
         else:
-            # Save empty result to prevent re-scraping old, non-existent races
             db_manager.save_results(DB_PATH, race['date'], location_slug, race['number'], {'runners': [], 'volunteers': []})
 
 if __name__ == '__main__':
@@ -159,51 +160,52 @@ if __name__ == '__main__':
     db_manager.save_locations(DB_PATH, locations)
     print(f"Найдено и сохранено {len(locations)} локаций.")
 
-    # --- Логика для выбора локаций --- #
     single_location_slug = None
-    # Ищем аргумент вида --slug
+    is_full_scan = '--full' in sys.argv
+
     for arg in sys.argv[1:]:
-        if arg.startswith('--') and arg != '--weekly' and arg != '--full':
+        if arg.startswith('--') and arg != '--full':
             single_location_slug = arg[2:]
             break
 
     if single_location_slug:
-        print(f"Запуск в режиме одной локации: {single_location_slug}")
+        print(f"\nЗапуск в режиме одной локации: {single_location_slug}")
         locations_to_process = [loc for loc in locations if loc['slug'] == single_location_slug]
         if not locations_to_process:
-            print(f"Ошибка: Локация '{single_location_slug}' не найдена в общем списке.")
+            print(f"Ошибка: Локация '{single_location_slug}' не найдена.")
             sys.exit(1)
     else:
+        print("\nЗапуск в режиме умного обновления для всех локаций...")
         locations_to_process = locations
 
-    is_weekly = '--weekly' in sys.argv
-    if is_weekly: print("\nЗапуск в режиме недельного обновления...")
-    else: print("\nЗапуск в режиме полного обновления...")
+    tasks_to_run = []
+    today = date.today()
+    update_threshold = today - timedelta(days=3)
 
     for loc in locations_to_process:
-        print(f"\n--- Поиск забегов для локации: {loc['name']} ---")
+        print(f"--- Поиск забегов для локации: {loc['name']} ---")
         races_for_loc = get_race_list_for_location(loc['slug'])
         if not races_for_loc:
             print("Забеги не найдены, пропускаем.")
             continue
 
         for race in races_for_loc:
+            if single_location_slug or is_full_scan:
+                tasks_to_run.append((race, loc['slug']))
+                continue
+
             race_date_obj = datetime.strptime(race['date'], '%d.%m.%Y').date()
-            # Если забег старый, проверяем, есть ли он в базе
             if race_date_obj < update_threshold:
-                existing_data = db_manager.load_results(DB_PATH, race['date'], loc['slug'])
-                if existing_data and (existing_data.get('runners') or existing_data.get('volunteers')):
-                    continue # Пропускаем, если данные уже есть
-            
-            # Добавляем в очередь на скачивание, если забег свежий или его нет в базе
-            tasks_to_run.append((race, loc['slug']))
+                if not db_manager.load_results(DB_PATH, race['date'], loc['slug']):
+                    tasks_to_run.append((race, loc['slug']))
+            else:
+                tasks_to_run.append((race, loc['slug']))
 
     if not tasks_to_run:
         print("\nНет новых забегов для обновления.")
     else:
         print(f"\nВсего задач на скачивание: {len(tasks_to_run)}. Запускаем {min(10, len(tasks_to_run))} потоков...")
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            # Распаковываем аргументы для process_race
             futures = [executor.submit(process_race, task[0], task[1]) for task in tasks_to_run]
             concurrent.futures.wait(futures)
             
