@@ -1,0 +1,15 @@
+# Python build artifacts
+__pycache__/
+*.pyc
+
+# Virtual Environment
+/venv/
+
+# Database files
+*.db
+*.db-journal
+
+# OS / Editor specific
+.DS_Store
+.idea/
+.vscode/

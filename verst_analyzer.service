@@ -1,0 +1,14 @@
+[Unit]
+Description=Gunicorn instance to serve verst_analyzer
+After=network.target
+
+[Service]
+# Важно: в рабочей среде лучше создать отдельного пользователя, а не использовать root
+User=root
+Group=root
+WorkingDirectory=/root/verst_analyzer
+Environment="PATH=/root/verst_analyzer/venv/bin"
+ExecStart=/root/verst_analyzer/venv/bin/gunicorn --workers 3 --bind unix:verst_analyzer.sock -m 007 app:app
+
+[Install]
+WantedBy=multi-user.target

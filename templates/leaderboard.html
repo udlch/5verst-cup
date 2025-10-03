@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏆</text></svg>">
+    <title>Кубок 5 вёрст</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --text-color: #1c1e21;
+            --card-bg-color: #fff;
+            --border-color: #dddfe2;
+            --subtle-text-color: #606770;
+            --hover-bg-color: #f5f5f5;
+            --switch-bg-color: #ccc;
+            --btn-color: #e6464c;
+            --btn-text-color: #fff;
+        }
+        [data-theme="dark"] {
+            --bg-color: #18191a;
+            --text-color: #e4e6eb;
+            --card-bg-color: #242526;
+            --border-color: #3a3b3c;
+            --subtle-text-color: #a8abaf;
+            --hover-bg-color: #4e4f50;
+            --switch-bg-color: #4e4f50;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: var(--bg-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; }
+        .container { padding: 15px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; }
+        .what-is-this a { 
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+            border-radius: 50%;
+            background-color: var(--subtle-text-color);
+            color: var(--card-bg-color);
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1em;
+        }
+        .controls-bar { position: sticky; top: 0; z-index: 100; background-color: var(--bg-color); padding: 10px 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .filters-group { display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .switch-container { display: flex; align-items: center; gap: 8px; font-size: 0.9em; font-weight: 600; color: var(--subtle-text-color); white-space: nowrap; }
+        .switch { position: relative; display: inline-block; width: 34px; height: 20px; flex-shrink: 0; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--switch-bg-color); transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--btn-color); }
+        input:checked + .slider:before { transform: translateX(14px); }
+        .filters-collapsible { width: 100%; margin-top: 15px; }
+        .filters-header { cursor: pointer; text-align: center; padding: 8px; font-weight: 600; color: var(--subtle-text-color); border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg-color); }
+        .filters-content { display: none; justify-content: center; gap: 8px; padding: 10px; background-color: var(--bg-color); border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 6px 6px; }
+        .filters-content.active { display: flex; flex-wrap: nowrap; overflow-x: auto; }
+        .filters-content select { -webkit-appearance: none; -moz-appearance: none; appearance: none; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--card-bg-color); color: var(--text-color); font-weight: 600; cursor: pointer; }
+        .links-menu-container { position: relative; flex-shrink: 0; }
+        #linksMenuToggle { background: none; border: none; cursor: pointer; font-family: inherit; font-size: 0.9em; font-weight: 600; color: var(--subtle-text-color); padding: 8px; white-space: nowrap; }
+        #linksMenuToggle .mobile-only { display: none; font-size: 1.5em; line-height: 1; }
+        .links-menu-dropdown { display: none; position: absolute; top: 110%; right: 0; background-color: var(--card-bg-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; min-width: 220px; overflow: hidden; border: 1px solid var(--border-color);}
+        .links-menu-dropdown.active { display: block; }
+        .links-menu-dropdown a { display: flex; align-items: center; gap: 10px; padding: 12px 15px; text-decoration: none; color: var(--text-color); font-size: 0.95em; }
+        .links-menu-dropdown a:hover { background-color: var(--bg-color); }
+        .social-icon { fill: var(--text-color); width: 20px; height: 20px; }
+        .fastest-record { text-align: left; font-size: 0.9em; margin-bottom: 10px; font-weight: 400; color: var(--subtle-text-color); }
+        table { width: 100%; border-collapse: collapse; background-color: var(--card-bg-color); box-shadow: 0 1px 2px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; font-size: 14px; }
+        th, td { padding: 12px 8px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { background-color: var(--bg-color); color: var(--subtle-text-color); text-transform: uppercase; font-size: 0.8em; cursor: pointer; position: relative; }
+        #nameHeaderCell input { width: 80%; padding: 6px; border: 1px solid #1877f2; border-radius: 4px; }
+        .place { font-weight: bold; font-size: 1em; color: var(--text-color); }
+        .runner-cell { padding-top: 8px; padding-bottom: 8px; }
+        .runner-info { font-weight: 600; font-size: 1em; }
+        .runner-info a { color: inherit; text-decoration: none; }
+        .runner-info a:hover { text-decoration: underline; }
+        .sub-info { font-size: 0.85em; color: var(--subtle-text-color); font-weight: 400; padding-top: 4px; display: block; }
+        .info-block { display: inline-block; white-space: nowrap; margin-right: 8px; }
+        .info-block .sortable { cursor: pointer; text-decoration: underline dotted; }
+        .medal-gold { color: #d4af37; font-weight: bold; }
+        .medal-silver { color: #aaa9ad; font-weight: bold; }
+        .medal-bronze { color: #b08d57; font-weight: bold; }
+        #loading { text-align: center; font-size: 1.5em; padding: 50px; color: var(--subtle-text-color); }
+        footer { text-align: center; padding: 20px 15px; font-size: 0.75em; color: var(--subtle-text-color); opacity: 0.8; }
+        footer a { color: inherit; }
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background-color: var(--card-bg-color); margin: auto; padding: 20px; border: 1px solid var(--border-color); border-radius: 8px; width: 90%; max-width: 500px; position: relative; }
+        .modal-close-btn { color: var(--subtle-text-color); position: absolute; top: 5px; right: 15px; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .modal-content p { font-size: 0.9em; color: var(--subtle-text-color); line-height: 1.5; }
+        .modal-content p a { color: var(--text-color); text-decoration: underline dotted; }
+
+        /* Custom Searchable Dropdown */
+        .custom-dropdown-container { position: relative; display: inline-block; }
+        .dropdown-selected-text { font-size: 0.9em; font-weight: normal; color: var(--subtle-text-color); cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+        .dropdown-selected-text:hover { background-color: var(--hover-bg-color); }
+        .dropdown-options { display: none; position: absolute; top: 110%; left: 50%; transform: translateX(-50%); background-color: var(--card-bg-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; width: 300px; border: 1px solid var(--border-color); }
+        .dropdown-options.active { display: block; }
+        #location-search-input { width: 100%; box-sizing: border-box; padding: 12px; border: none; border-bottom: 1px solid var(--border-color); font-size: 1em; background-color: var(--card-bg-color); color: var(--text-color); }
+        #location-options-list { max-height: 300px; overflow-y: auto; }
+        #location-options-list a { display: block; padding: 12px 15px; text-decoration: none; color: var(--text-color); }
+        #location-options-list a:hover { background-color: var(--hover-bg-color); }
+
+        @media (max-width: 768px) {
+            #linksMenuToggle .desktop-only { display: none; }
+            #linksMenuToggle .mobile-only { display: block; }
+        }
+        @media (max-width: 420px) { 
+            .filters-group { gap: 8px; }
+            .switch-container { font-size: 0.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="container">
+            <div class="top-bar">
+                <div id="location-selector-container" class="custom-dropdown-container">
+                    <div id="locationSelector" class="dropdown-selected-text">Загрузка...</div>
+                    <div id="location-selector-dropdown" class="dropdown-options">
+                        <input type="text" id="location-search-input" placeholder="Поиск локации...">
+                        <div id="location-options-list"></div>
+                    </div>
+                </div>
+                <div class="what-is-this"><a href="#" id="whatIsThisLink">?</a></div>
+            </div>
+            <div class="controls-bar">
+                <div class="filters-group">
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="seasonToggle">
+                            <span class="slider"></span>
+                        </label>
+                        <span id="currentSeasonLabel">Текущий сезон</span>
+                    </div>
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="detailedViewToggle">
+                            <span class="slider"></span>
+                        </label>
+                        <span>Подробно</span>
+                    </div>
+                </div>
+                <div class="links-menu-container">
+                    <button id="linksMenuToggle">
+                        <span class="desktop-only">Полезные ссылки ▾</span>
+                        <span class="mobile-only">☰</span>
+                    </button>
+                    <div id="linksMenu" class="links-menu-dropdown">
+                        <!-- Links are populated by JS -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="filters-collapsible">
+                <div id="filtersHeader" class="filters-header" onclick="toggleFilters()">Фильтры ▾</div>
+                <div id="filtersContent" class="filters-content">
+                    <select id="yearSelector"></select>
+                    <select id="seasonSelector"></select>
+                    <select id="monthSelector"></select>
+                    <select id="raceSelector"></select>
+                </div>
+            </div>
+
+            <div id="fastestRecord" class="fastest-record"></div>
+            <div id="loading"></div>
+
+            <table id="leaderboardTable" style="display:none;">
+                <thead></thead>
+                <tbody id="leaderboardBody"></tbody>
+            </table>
+        </div>
+
+        <div id="infoModal" class="modal">
+            <div class="modal-content">
+                <span class="modal-close-btn">&times;</span>
+                <p>Ты на странице проекта "Кубок 5вёрст". Проект не связан с 5verst.ru и носит развлекательный характер.</p>
+                <p>По умолчанию таблица выдает данные за текущий сезон, но ты можешь выбрать любой период времени по своему желанию.</p>
+                <p>Очки участников считаются на основании показателя <a href="#" id="ageGradeLink" class="sortable">age grade</a>, присвоенных системой 5 вёрст по результатам каждого забега.</p>
+                <p>Медали участников отражают их место в каждом отдельном забеге: для мальчиков в общем зачете, а для девочек индивидуально по девочкам.</p>
+                <p>На основании присвоенных участникам очков определяется пара победителей. Ты можешь видеть 🏆 рядом с их именами.</p>
+                <p>В подробной выдаче также видны лучшее и среднее время участника за выбранный период, количество медалей, забегов и волонтерств.</p>
+                <p>Если заметили ошибки или хотите поддержать проект пишите на <a href="mailto:cup5v@udlch.ru">cup5v@udlch.ru</a></p>
+            </div>
+        </div>
+
+        <div id="ageGradeModal" class="modal">
+            <div class="modal-content">
+                <span class="modal-close-btn">&times;</span>
+                <p>Возрастной рейтинг (age grade) — это относительное сравнение результата участника и мирового рекорда с учетом его возраста и пола. Рейтинг рассчитывается в соответствии с формулами parkrun.</p>
+            </div>
+        </div>
+
+        <footer>
+            Проект не связан с 5verst.ru. По техническим вопросам и вопросам поддержки проекта пишите на <a href="mailto:cup5v@udlch.ru">cup5v@udlch.ru</a>
+        </footer>
+    </div>
+
+    <script>
+        let fullLeaderboard = [], viewLeaderboard = [], allRaces = [], allLocations = [];
+        let isDetailedView = false, isShowingBestTime = true;
+        let currentSort = { column: 0, direction: 'asc' };
+        let searchQuery = '';
+        let selectedLocationSlug = 'korolev';
+
+        const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        const SEASON_MONTHS = { 'зима': [11, 0, 1], 'весна': [2, 3, 4], 'лето': [5, 6, 7], 'осень': [8, 9, 10] };
+        const LOADING_PHRASES = [
+            'Суббота.Утро.Парк.',
+            'Ненавижу бег!',
+            'Беги, если хочешь жить!',
+            'Как твое колено?',
+            '20 по 400 через 200',
+            'Пиво - лучший изотоник',
+            'Запишись волонтером!'
+        ];
+
+        const setTheme = (theme) => {
+            document.body.dataset.theme = theme;
+            localStorage.setItem('theme', theme);
+            if (document.getElementById('themeToggle')) {
+                document.getElementById('themeToggle').checked = theme === 'dark';
+            }
+        };
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            setTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            loadInitialData();
+        });
+
+        function setupEventListeners() {
+            // Main menus
+            document.getElementById('linksMenuToggle').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('linksMenu').classList.toggle('active'); });
+            document.getElementById('locationSelector').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('location-selector-dropdown').classList.toggle('active'); });
+            window.addEventListener('click', () => { 
+                document.getElementById('linksMenu').classList.remove('active');
+                document.getElementById('location-selector-dropdown').classList.remove('active');
+            });
+            document.getElementById('location-selector-dropdown').addEventListener('click', (e) => e.stopPropagation());
+            document.getElementById('location-search-input').addEventListener('input', filterLocations);
+            document.getElementById('location-options-list').addEventListener('click', selectLocation);
+
+            // Main toggles
+            document.getElementById('seasonToggle').addEventListener('change', applyFilters);
+            document.getElementById('detailedViewToggle').addEventListener('change', toggleDetailedView);
+
+            // Collapsible filters
+            document.getElementById('filtersHeader').addEventListener('click', toggleFilters);
+            document.getElementById('yearSelector').addEventListener('change', applyFilters);
+            document.getElementById('monthSelector').addEventListener('change', applyFilters);
+            document.getElementById('raceSelector').addEventListener('change', applyFilters);
+            document.getElementById('seasonSelector').addEventListener('change', () => { updateDependentSelectors(); applyFilters(); });
+
+            // Modals
+            const infoModal = document.getElementById('infoModal');
+            const ageGradeModal = document.getElementById('ageGradeModal');
+            document.getElementById('whatIsThisLink').addEventListener('click', (e) => { e.preventDefault(); infoModal.classList.add('active'); });
+            infoModal.querySelector('.modal-close-btn').addEventListener('click', () => infoModal.classList.remove('active'));
+            ageGradeModal.querySelector('.modal-close-btn').addEventListener('click', () => ageGradeModal.classList.remove('active'));
+            document.body.addEventListener('click', (e) => {
+                if (e.target.id === 'ageGradeLink') { e.preventDefault(); ageGradeModal.classList.add('active'); }
+                if (e.target === infoModal) infoModal.classList.remove('active');
+                if (e.target === ageGradeModal) ageGradeModal.classList.remove('active');
+            });
+        }
+
+        function loadInitialData() {
+            fetch('/api/locations').then(res => res.ok ? res.json() : Promise.reject(res))
+                .then(locations => {
+                    allLocations = locations;
+                    populateLocationSelector();
+                    onLocationChange();
+                }).catch(handleFetchError);
+        }
+
+        function onLocationChange() {
+            const location = allLocations.find(l => l.slug === selectedLocationSlug);
+            if (!location) return;
+
+            document.getElementById('locationSelector').innerHTML = `<span style="font-weight: normal;">Мои 5вёрст:</span> <b style="color: var(--text-color);">${location.name}</b>`;
+            populateLinksMenu(location);
+            initTheme();
+
+            Promise.all([
+                fetch(`/api/years?location=${selectedLocationSlug}`).then(res => res.ok ? res.json() : Promise.reject(res)),
+                fetch(`/api/racedates?location=${selectedLocationSlug}`).then(res => res.ok ? res.json() : Promise.reject(res))
+            ]).then(([years, raceDates]) => {
+                allRaces = raceDates;
+                populateStaticSelectors(years);
+                applyFilters();
+                updateCurrentSeasonLabel();
+            }).catch(handleFetchError);
+        }
+
+        function populateLocationSelector() {
+            const list = document.getElementById('location-options-list');
+            list.innerHTML = '';
+            allLocations.forEach(loc => {
+                const a = document.createElement('a');
+                a.href = '#';
+                a.textContent = loc.name;
+                a.dataset.slug = loc.slug;
+                list.appendChild(a);
+            });
+        }
+
+        function filterLocations(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const links = document.querySelectorAll('#location-options-list a');
+            links.forEach(link => {
+                const name = link.textContent.toLowerCase();
+                link.style.display = name.includes(searchTerm) ? 'block' : 'none';
+            });
+        }
+
+        function selectLocation(e) {
+            e.preventDefault();
+            if (e.target.tagName === 'A') {
+                selectedLocationSlug = e.target.dataset.slug;
+                document.getElementById('location-selector-dropdown').classList.remove('active');
+                onLocationChange();
+            }
+        }
+
+        function populateLinksMenu(location) {
+            const menu = document.getElementById('linksMenu');
+            let menuHTML = `
+                <a href="${location.url}" target="_blank">${location.name}</a>
+                <a href="${location.url}results/latest/" target="_blank">Последние результаты</a>
+            `;
+            if (location.slug === 'korolev') {
+                menuHTML += `<a href="https://disk.yandex.ru/edit/d/FsfuvgE_NySnDP1WFnZO8CPegnqahzm72s0qoIz-cKg6NFBQM18xb2laZw" target="_blank">Табличка волонтёрств</a>`;
+            }
+            menuHTML += `
+                <hr style="margin: 5px 0; border: none; border-top: 1px solid var(--border-color);">
+                <div class="switch-container" style="padding: 12px 15px;">
+                    <label class="switch"><input type="checkbox" id="themeToggle"><span class="slider"></span></label>
+                    <span>Тёмная тема</span>
+                </div>
+            `;
+            menu.innerHTML = menuHTML;
+            document.getElementById('themeToggle').addEventListener('change', (e) => setTheme(e.target.checked ? 'dark' : 'light'));
+            initTheme();
+        }
+
+        function populateStaticSelectors(years) {
+            const yearSelector = document.getElementById('yearSelector');
+            yearSelector.innerHTML = '<option value="all">Год</option>';
+            years.forEach(year => yearSelector.add(new Option(year, year)));
+            
+            const seasonSelector = document.getElementById('seasonSelector');
+            seasonSelector.innerHTML = '<option value="all">Сезон</option>';
+            ['Зима', 'Весна', 'Лето', 'Осень'].forEach(s => seasonSelector.add(new Option(s, s.toLowerCase())));
+            
+            updateDependentSelectors();
+        }
+
+        function updateDependentSelectors() {
+            const year = document.getElementById('yearSelector').value;
+            const season = document.getElementById('seasonSelector').value;
+            const monthSelector = document.getElementById('monthSelector');
+            const raceSelector = document.getElementById('raceSelector');
+
+            const currentMonth = monthSelector.value;
+            monthSelector.innerHTML = '<option value="all">Месяц</option>';
+            let relevantMonths = Array.from(MONTHS.entries());
+            if (season !== 'all') {
+                const seasonMonthIndexes = SEASON_MONTHS[season];
+                if (seasonMonthIndexes) relevantMonths = relevantMonths.filter(([i, _]) => seasonMonthIndexes.includes(i));
+            }
+            relevantMonths.forEach(([i, name]) => monthSelector.add(new Option(name, i + 1)));
+            monthSelector.value = currentMonth;
+            if (!monthSelector.value) monthSelector.value = 'all';
+
+            const currentRace = raceSelector.value;
+            raceSelector.innerHTML = '<option value="all">Забег</option>';
+            let filteredRaces = allRaces;
+            if (year !== 'all') filteredRaces = filteredRaces.filter(r => r.date.endsWith(year));
+            if (season !== 'all') {
+                const seasonMonthIndexes = SEASON_MONTHS[season].map(m => m + 1);
+                filteredRaces = filteredRaces.filter(r => {
+                    const raceMonth = parseInt(r.date.split('.')[1], 10);
+                    return seasonMonthIndexes.includes(raceMonth);
+                });
+            }
+            if (monthSelector.value !== 'all') filteredRaces = filteredRaces.filter(r => new Date(r.date.split('.').reverse().join('-')).getMonth() + 1 == monthSelector.value);
+
+            filteredRaces.forEach(race => raceSelector.add(new Option(`#${race.number}`, race.number)));
+            raceSelector.value = currentRace;
+            if (!raceSelector.value) raceSelector.value = 'all';
+        }
+
+        function applyFilters() {
+            updateDependentSelectors();
+            const isCurrentSeason = document.getElementById('seasonToggle').checked;
+            const filtersCollapsible = document.querySelector('.filters-collapsible');
+            let params = { location: selectedLocationSlug };
+
+            if (isCurrentSeason) {
+                params.filter = 'current_season';
+                filtersCollapsible.style.display = 'none';
+            } else {
+                filtersCollapsible.style.display = 'block';
+                params.year = document.getElementById('yearSelector').value;
+                params.season = document.getElementById('seasonSelector').value;
+                params.month = document.getElementById('monthSelector').value;
+                params.race_number = document.getElementById('raceSelector').value;
+            }
+            loadData(params);
+        }
+
+        function toggleFilters() {
+            document.getElementById('filtersContent').classList.toggle('active');
+        }
+
+        function loadData(params) {
+            const cleanParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v && v !== 'all'));
+            const query = new URLSearchParams(cleanParams).toString();
+            const loadingDiv = document.getElementById('loading');
+            
+            const randomPhrase = LOADING_PHRASES[Math.floor(Math.random() * LOADING_PHRASES.length)];
+            loadingDiv.textContent = randomPhrase;
+
+            let loadingTimer = setTimeout(() => {
+                loadingDiv.style.display = 'block';
+                document.getElementById('leaderboardTable').style.display = 'none';
+            }, 300);
+
+            fetch(`/api/data?${query}`)
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                    return res.json();
+                })
+                .then(data => {
+                    clearTimeout(loadingTimer);
+                    fullLeaderboard = data.leaderboard;
+                    ({ top_male: topMale, top_female: topFemale, overall_fastest: { name: overallFastestName } } = data.metadata);
+                    searchQuery = '';
+                    currentSort = { column: 0, direction: 'asc' };
+                    updateFastestRecord(data.metadata.overall_fastest);
+                    renderHeaders();
+                    applyFiltersAndRender();
+                    loadingDiv.style.display = 'none';
+                    document.getElementById('leaderboardTable').style.display = 'table';
+                })
+                .catch(handleFetchError);
+        }
+        
+        function handleFetchError(error) {
+            console.error('Fetch error:', error);
+            const loadingDiv = document.getElementById('loading');
+            loadingDiv.innerHTML = 'Ошибка загрузки данных. Попробуйте обновить страницу или проверьте консоль сервера.';
+            loadingDiv.style.color = 'red';
+        }
+
+        function applyFiltersAndRender() {
+            viewLeaderboard = fullLeaderboard.filter(r => r.name.toUpperCase().includes(searchQuery));
+            sortViewLeaderboard();
+            populateTbody();
+        }
+
+        function renderHeaders() {
+            const thead = document.querySelector('#leaderboardTable thead');
+            thead.innerHTML = `<tr>
+                <th onclick="sortTable(0)">#</th>
+                <th id="nameHeaderCell" onclick="showSearchInput(this, 'Участник')"><span>Участник</span></th>
+                <th onclick="sortTable(2)">Очки</th>
+            </tr>`;
+        }
+
+        function populateTbody() {
+            const tbody = document.getElementById('leaderboardBody');
+            tbody.innerHTML = viewLeaderboard.map(runner => {
+                const nameCellContent = isDetailedView ? getDetailedSubInfo(runner) : '';
+                return `<tr>
+                    <td class="place">${fullLeaderboard.indexOf(runner) + 1}</td>
+                    <td class="runner-cell"><div class="runner-info">${getRunnerNameWithEmoji(runner)}</div>${nameCellContent}</td>
+                    <td>${runner.total_score.toFixed(2)}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function getDetailedSubInfo(runner) {
+            const timeLabel = isShowingBestTime ? 'лучшее' : 'среднее';
+            const timeValue = isShowingBestTime ? runner.best_time_seconds : (runner.run_count > 0 ? runner.total_time_seconds / runner.run_count : null);
+            const timeFormatted = formatTime(timeValue);
+            const raceNumHTML = (isShowingBestTime && runner.best_time_race_number) ? ` (#${runner.best_time_race_number})` : '';
+            const medals = `<span class="medal-gold">${runner.gold_medals}</span>-<span class="medal-silver">${runner.silver_medals}</span>-<span class="medal-bronze">${runner.bronze_medals}</span>`;
+            return `<div class="sub-info">
+                <span class="info-block"><span class="sortable" onclick="sortTable(3)">забегов</span> ${runner.run_count}</span>
+                <span class="info-block"><span class="sortable" onclick="sortTable(4)">• волонтерств</span> ${runner.volunteer_count}</span>
+                <span class="info-block">• <span class="sortable" onclick="toggleTimeDisplay()">${timeLabel} время</span>: <span class="sortable" onclick="sortTable(5)">${timeFormatted}${raceNumHTML}</span></span>
+                <span class="info-block"><span class="sortable" onclick="sortTable(6)">• медали</span>: ${medals}</span>
+            </div>`;
+        }
+        
+        function showSearchInput(cell, defaultText) {
+            if (cell.querySelector('input')) return;
+            cell.onclick = null;
+            cell.innerHTML = `<input type="text" value="${searchQuery}" onkeyup="onSearchInput(event)" onblur="hideSearchInput(this, '${defaultText}')" placeholder="Поиск...">`;
+            cell.querySelector('input').focus();
+        }
+
+        function hideSearchInput(input, defaultText) {
+            const cell = input.parentElement;
+            cell.innerHTML = `<span>${defaultText}</span>`;
+            cell.onclick = () => showSearchInput(cell, defaultText);
+        }
+
+        function onSearchInput(event) {
+            searchQuery = event.target.value.toUpperCase();
+            if (event.key === 'Enter' || event.key === 'Escape') event.target.blur();
+            applyFiltersAndRender();
+        }
+
+        function toggleDetailedView() {
+            isDetailedView = !isDetailedView;
+            document.getElementById('detailedViewToggle').checked = isDetailedView;
+            populateTbody();
+        }
+
+        function toggleTimeDisplay() {
+            isShowingBestTime = !isShowingBestTime;
+            populateTbody();
+        }
+
+        function sortTable(columnIndex) {
+            const DESC_FIRST_COLUMNS = [2, 3, 4, 6]; // Points, Runs, Volunteers, Medals
+            let direction;
+            if (currentSort.column === columnIndex) {
+                direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                direction = DESC_FIRST_COLUMNS.includes(columnIndex) ? 'desc' : 'asc';
+            }
+            currentSort = { column: columnIndex, direction: direction };
+            applyFiltersAndRender();
+        }
+
+        function showRunner(name) {
+            searchQuery = name.toUpperCase();
+            const searchInput = document.querySelector('#nameHeaderCell input');
+            if(searchInput) searchInput.value = name;
+            applyFiltersAndRender();
+        }
+
+        function getRunnerNameWithEmoji(runner) {
+            let prefix = '';
+            if (runner.name === topMale || runner.name === topFemale) prefix += '🏆 ';
+            if (runner.name === overallFastestName) prefix += '🏃 ';
+            const url = `https://5verst.ru/userstats/${runner.id}/`;
+            return `${prefix}<a href="${url}" target="_blank">${runner.name}</a>`;
+        }
+
+        function sortViewLeaderboard() {
+            const { column, direction } = currentSort;
+            const modifier = direction === 'asc' ? 1 : -1;
+            viewLeaderboard.sort((a, b) => {
+                let valA, valB;
+                if (column === 0) { valA = fullLeaderboard.indexOf(a); valB = fullLeaderboard.indexOf(b); }
+                else if (column === 1) { return a.name.localeCompare(b.name) * modifier; }
+                else if (column === 2) { valA = a.total_score; valB = b.total_score; }
+                else if (column === 3) { valA = a.run_count; valB = b.run_count; }
+                else if (column === 4) { valA = a.volunteer_count; valB = b.volunteer_count; }
+                else if (column === 5) {
+                    valA = isShowingBestTime ? (a.best_time_seconds || Infinity) : (a.run_count > 0 ? a.total_time_seconds / a.run_count : Infinity);
+                    valB = isShowingBestTime ? (b.best_time_seconds || Infinity) : (b.run_count > 0 ? b.total_time_seconds / b.run_count : Infinity);
+                    return (valA - valB) * modifier;
+                }
+                else if (column === 6) { // Sort by total medals (G > S > B)
+                    valA = a.gold_medals * 1000 + a.silver_medals * 100 + a.bronze_medals;
+                    valB = b.gold_medals * 1000 + b.silver_medals * 100 + b.bronze_medals;
+                }
+                return (valA - valB) * modifier;
+            });
+        }
+
+        function updateFastestRecord(fastest) {
+            const recordDiv = document.getElementById('fastestRecord');
+            if (fastest && fastest.time != null) {
+                const runnerNameHTML = `<b style="cursor: pointer; font-weight: bold;" onclick="showRunner('${fastest.name}')">${fastest.name}</b>`;
+                const raceNumHTML = fastest.race_number ? ` (#${fastest.race_number})` : '';
+                const ageText = fastest.age_days != null ? `${fastest.age_days} дней назад` : '';
+                recordDiv.innerHTML = `
+                    <div>Рекорд трассы: ${runnerNameHTML} (${formatTime(fastest.time)})${raceNumHTML}</div>
+                    <div style="font-size: 0.9em; color: var(--subtle-text-color);">${ageText}</div>
+                `;
+            } else {
+                recordDiv.textContent = 'Нет данных о рекордах.';
+            }
+        }
+
+        function formatTime(time) {
+            if (time == null || isNaN(time)) return "нет";
+            const h = Math.floor(time / 3600).toString().padStart(2, '0');
+            const m = Math.floor((time % 3600) / 60).toString().padStart(2, '0');
+            const s = Math.floor(time % 60).toString().padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function updateCurrentSeasonLabel() {
+            const now = new Date();
+            const month = now.getMonth();
+            const year = now.getFullYear().toString().slice(-2);
+            let seasonName = '';
+            if ([11, 0, 1].includes(month)) seasonName = 'Зима';
+            else if ([2, 3, 4].includes(month)) seasonName = 'Весна';
+            else if ([5, 6, 7].includes(month)) seasonName = 'Лето';
+            else seasonName = 'Осень';
+            document.getElementById('currentSeasonLabel').textContent = `${seasonName} '${year}`;
+        }
+    </script>
+</body>
+</html>
