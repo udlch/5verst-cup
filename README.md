@@ -47,30 +47,3 @@ cd ваш_репозиторий
 ### После установки
 
 После успешного выполнения скрипта ваше приложение будет работать на порту `8001`. Вам останется только настроить веб-сервер (например, Nginx) в качестве reverse proxy, чтобы сделать приложение доступным извне.
-
-#### Пример конфигурации для Nginx
-
-1.  **Создайте файл конфигурации:**
-    ```bash
-    sudo nano /etc/nginx/sites-available/verst_analyzer
-    ```
-2.  **Вставьте содержимое, заменив `ваш_домен_или_IP`:**
-    ```nginx
-    server {
-        listen 80;
-        server_name ваш_домен_или_IP;
-
-        location / {
-            proxy_pass http://127.0.0.1:8001;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-    }
-    ```
-3.  **Активируйте сайт и перезапустите Nginx:**
-    ```bash
-    sudo ln -s /etc/nginx/sites-available/verst_analyzer /etc/nginx/sites-enabled/
-    sudo nginx -t
-    sudo systemctl restart nginx
-    ```
