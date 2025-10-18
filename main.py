@@ -102,20 +102,24 @@ def parse_html_for_results(html_content):
                     name = name_cell.text.strip() if name_cell else "Неизвестный"
                     
                     age_grade_text = cells[2].text.strip()
+                    print(f"Parsing age grade text: '{age_grade_text}'")
                     score_match = re.search(r'([\d\.]+)\%', age_grade_text)
                     gender_match = re.search(r'^[МЖ]', age_grade_text)
-                    age_group_match = re.search(r'[МЖ](\d{2}-\d{2})', age_grade_text)
+                    age_group_match = re.search(r'[МЖ](\d{1,2}-\d{1,2})', age_grade_text)
 
                     time_text = cells[3].text.strip()
                     if not re.match(r'^\d{2}:\d{2}:\d{2}$', time_text): continue
                     time_parts = [int(x) for x in time_text.split(':')]
+
+                    age_group = age_group_match.group(1) if age_group_match else None
+                    print(f"Parsed age group: {age_group} for runner {name}")
 
                     runners.append({
                         'id': runner_id, 'name': name,
                         'score': float(score_match.group(1)) if score_match else 0.0,
                         'time_in_seconds': time_parts[0] * 3600 + time_parts[1] * 60 + time_parts[2],
                         'gender': gender_match.group(0) if gender_match else "Н/Д",
-                        'age_group': age_group_match.group(1) if age_group_match else None,
+                        'age_group': age_group,
                         'overall_rank': int(cells[0].text.strip())
                     })
                 except (ValueError, IndexError, AttributeError): continue

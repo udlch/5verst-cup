@@ -68,7 +68,9 @@
         table { width: 100%; border-collapse: collapse; background-color: var(--card-bg-color); box-shadow: 0 1px 2px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; font-size: 14px; }
         th, td { padding: 12px 8px; text-align: left; border-bottom: 1px solid var(--border-color); }
         th { background-color: var(--bg-color); color: var(--subtle-text-color); text-transform: uppercase; font-size: 0.8em; cursor: pointer; position: relative; }
-        #nameHeaderCell input { width: 80%; padding: 6px; border: 1px solid #1877f2; border-radius: 4px; }
+        .name-search-input { width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color); }
+        td a { color: inherit; text-decoration: none; }
+        td a:hover { text-decoration: underline; }
         .place { font-weight: bold; font-size: 1em; color: var(--text-color); }
         .runner-cell { padding-top: 8px; padding-bottom: 8px; }
         .runner-info { font-weight: 600; font-size: 1em; }
@@ -81,6 +83,11 @@
         .medal-silver { color: #aaa9ad; font-weight: bold; }
         .medal-bronze { color: #b08d57; font-weight: bold; }
         #loading { text-align: center; font-size: 1.5em; padding: 50px; color: var(--subtle-text-color); }
+        #paginator { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px; }
+        #paginator a, #paginator span { color: var(--text-color); text-decoration: none; padding: 5px 10px; border-radius: 4px; }
+        #paginator a:hover { background-color: var(--hover-bg-color); }
+        #paginator span.active { background-color: var(--btn-color); color: var(--btn-text-color); }
+        .page-info { font-size: 0.9em; color: var(--subtle-text-color); }
         footer { text-align: center; padding: 20px 15px; font-size: 0.75em; color: var(--subtle-text-color); opacity: 0.8; }
         footer a { color: inherit; }
 
@@ -160,6 +167,7 @@
                 <select id="seasonSelector"></select>
                 <select id="monthSelector"></select>
                 <select id="raceSelector"></select>
+                <select id="agSelector"></select>
             </div>
         </div>
 
@@ -170,6 +178,7 @@
             <thead></thead>
             <tbody id="leaderboardBody"></tbody>
         </table>
+        <div id="paginator"></div>
     </div>
 
     <div id="infoModal" class="modal">
@@ -202,6 +211,9 @@
         let currentSort = { column: 0, direction: 'asc' };
         let searchQuery = '';
         let selectedLocationSlug = 'korolev';
+        let currentPage = 1;
+        let totalPages = 1;
+        let agFilter = 'all';
 
         const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
         const SEASON_MONTHS = { 'зима': [11, 0, 1], 'весна': [2, 3, 4], 'лето': [5, 6, 7], 'осень': [8, 9, 10] };
@@ -259,6 +271,7 @@
             document.getElementById('monthSelector').addEventListener('change', applyFilters);
             document.getElementById('raceSelector').addEventListener('change', applyFilters);
             document.getElementById('seasonSelector').addEventListener('change', () => { updateDependentSelectors(); applyFilters(); });
+            document.getElementById('agSelector').addEventListener('change', applyFilters);
 
             // Modals
             const infoModal = document.getElementById('infoModal');
@@ -274,6 +287,12 @@
 
             // Table interaction
             document.getElementById('leaderboardTable').addEventListener('click', handleTableClick);
+            document.getElementById('paginator').addEventListener('click', (e) => {
+                if (e.target.matches('[data-page]')) {
+                    e.preventDefault();
+                    changePage(parseInt(e.target.dataset.page, 10));
+                }
+            });
         }
 
         function loadInitialData() {
@@ -281,32 +300,48 @@
                 .then(locations => {
                     allLocations = locations;
                     populateLocationSelector();
+                    populateAgSelector();
                     onLocationChange();
                 }).catch(handleFetchError);
         }
 
         function onLocationChange() {
-            const location = allLocations.find(l => l.slug === selectedLocationSlug);
-            if (!location) return;
+            currentPage = 1;
+            const raceSelector = document.getElementById('raceSelector');
+            const detailedViewToggle = document.getElementById('detailedViewToggle').parentElement;
 
-            document.getElementById('locationSelector').innerHTML = `<span style="font-weight: normal;">Мои 5вёрст:</span> <b style="color: var(--text-color);">${location.name}</b>`;
-            populateLinksMenu(location);
-            initTheme();
+            detailedViewToggle.style.display = 'flex'; // Always show detailed view toggle
 
-            Promise.all([
-                fetch(`/api/years?location=${selectedLocationSlug}`).then(res => res.ok ? res.json() : Promise.reject(res)),
-                fetch(`/api/racedates?location=${selectedLocationSlug}`).then(res => res.ok ? res.json() : Promise.reject(res))
-            ]).then(([years, raceDates]) => {
-                allRaces = raceDates;
-                populateStaticSelectors(years);
+            if (selectedLocationSlug === 'all') {
+                document.getElementById('locationSelector').innerHTML = `<span style="font-weight: normal;">Мои 5вёрст:</span> <b style="color: var(--text-color);">5вёрст</b>`;
+                raceSelector.style.display = 'none';
+                populateLinksMenu({slug: 'all', name: '5вёрст', url: 'https://5verst.ru/'});
+                initTheme();
                 applyFilters();
-                updateCurrentSeasonLabel();
-            }).catch(handleFetchError);
+            } else {
+                const location = allLocations.find(l => l.slug === selectedLocationSlug);
+                if (!location) return;
+
+                document.getElementById('locationSelector').innerHTML = `<span style="font-weight: normal;">Мои 5вёрст:</span> <b style="color: var(--text-color);">${location.name}</b>`;
+                raceSelector.style.display = 'inline-block';
+                populateLinksMenu(location);
+                initTheme();
+
+                Promise.all([
+                    fetch(`/api/years?location=${selectedLocationSlug}`).then(res => res.ok ? res.json() : Promise.reject(res)),
+                    fetch(`/api/racedates?location=${selectedLocationSlug}`).then(res => res.ok ? res.json() : Promise.reject(res))
+                ]).then(([years, raceDates]) => {
+                    allRaces = raceDates;
+                    populateStaticSelectors(years);
+                    applyFilters();
+                    updateCurrentSeasonLabel();
+                }).catch(handleFetchError);
+            }
         }
 
         function populateLocationSelector() {
             const list = document.getElementById('location-options-list');
-            list.innerHTML = '';
+            list.innerHTML = '<a href="#" data-slug="all">5вёрст</a>';
             allLocations.forEach(loc => {
                 const a = document.createElement('a');
                 a.href = '#';
@@ -314,6 +349,15 @@
                 a.dataset.slug = loc.slug;
                 list.appendChild(a);
             });
+        }
+
+        function populateAgSelector() {
+            fetch('/api/age-groups').then(res => res.ok ? res.json() : Promise.reject(res))
+                .then(ageGroups => {
+                    const agSelector = document.getElementById('agSelector');
+                    agSelector.innerHTML = '<option value="" selected>A/G</option><option value="all">все A/G</option>';
+                    ageGroups.forEach(ag => agSelector.add(new Option(ag, ag)));
+                }).catch(handleFetchError);
         }
 
         function filterLocations(e) {
@@ -336,15 +380,28 @@
 
         function populateLinksMenu(location) {
             const menu = document.getElementById('linksMenu');
-            const baseUrl = location.url.endsWith('/') ? location.url : location.url + '/';
-            let menuHTML = `
-                <a href="${baseUrl}" target="_blank">${location.name}</a>
-                <a href="${baseUrl}results/latest/" target="_blank">Последние результаты</a>
-            `;
-            if (location.slug === 'korolev') {
-                menuHTML += `<a href="https://disk.yandex.ru/edit/d/FsfuvgE_NySnDP1WFnZO8CPegnqahzm72s0qoIz-cKg6NFBQM18xb2laZw" target="_blank">Табличка волонтёрств</a>`;
+            let menuHTML = '';
+
+            if (location.slug === 'all') {
+                menuHTML = `
+                    <a href="https://5verst.ru/" target="_blank">Сайт 5вёрст</a>
+                `;
+            } else {
+                const baseUrl = location.url.endsWith('/') ? location.url : location.url + '/';
+                menuHTML = `
+                    <a href="${baseUrl}" target="_blank">${location.name}</a>
+                    <a href="${baseUrl}results/latest/" target="_blank">Последние результаты</a>
+                `;
+                if (location.slug === 'korolev') {
+                    menuHTML += `<a href="https://disk.yandex.ru/edit/d/FsfuvgE_NySnDP1WFnZO8CPegnqahzm72s0qoIz-cKg6NFBQM18xb2laZw" target="_blank">Табличка волонтёрств</a>`;
+                }
             }
+
             menuHTML += `
+                <hr style="margin: 5px 0; border: none; border-top: 1px solid var(--border-color);">
+                <form action="/search" method="get" style="padding: 12px 15px;" onclick="event.stopPropagation();">
+                    <input type="text" name="query" placeholder="Поиск по ID или имени" style="width: 100%; box-sizing: border-box;">
+                </form>
                 <hr style="margin: 5px 0; border: none; border-top: 1px solid var(--border-color);">
                 <div class="switch-container" style="padding: 12px 15px;">
                     <label class="switch"><input type="checkbox" id="themeToggle"><span class="slider"></span></label>
@@ -353,7 +410,6 @@
             `;
             menu.innerHTML = menuHTML;
             document.getElementById('themeToggle').addEventListener('change', (e) => setTheme(e.target.checked ? 'dark' : 'light'));
-            initTheme();
         }
 
         function populateStaticSelectors(years) {
@@ -407,7 +463,7 @@
             updateDependentSelectors();
             const isCurrentSeason = document.getElementById('seasonToggle').checked;
             const filtersCollapsible = document.querySelector('.filters-collapsible');
-            let params = { location: selectedLocationSlug };
+            let params = { location: selectedLocationSlug, page: currentPage, ag: document.getElementById('agSelector').value };
 
             if (isCurrentSeason) {
                 params.filter = 'current_season';
@@ -427,7 +483,13 @@
         }
 
         function loadData(params) {
-            const cleanParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v && v !== 'all'));
+            const cleanParams = Object.fromEntries(
+                Object.entries(params).filter(([k, v]) => {
+                    if (!v || v === '') return false;
+                    if (v === 'all' && k !== 'location' && k !== 'ag') return false;
+                    return true;
+                })
+            );
             const query = new URLSearchParams(cleanParams).toString();
             const loadingDiv = document.getElementById('loading');
             
@@ -447,12 +509,18 @@
                 .then(data => {
                     clearTimeout(loadingTimer);
                     fullLeaderboard = data.leaderboard;
+                    totalPages = data.pages || 1;
                     ({ top_male: topMale, top_female: topFemale, overall_fastest: { name: overallFastestName } } = data.metadata);
                     searchQuery = '';
-                    currentSort = { column: 0, direction: 'asc' };
+                    if (document.getElementById('agSelector').value || selectedLocationSlug === 'all') {
+                        currentSort = { column: 5, direction: 'asc' };
+                    } else {
+                        currentSort = { column: 0, direction: 'asc' };
+                    }
                     updateFastestRecord(data.metadata.overall_fastest);
                     renderHeaders();
                     applyFiltersAndRender();
+                    renderPaginator();
                     loadingDiv.style.display = 'none';
                     document.getElementById('leaderboardTable').style.display = 'table';
                 })
@@ -467,28 +535,58 @@
         }
 
         function applyFiltersAndRender() {
-            viewLeaderboard = fullLeaderboard.filter(r => r.name.toUpperCase().includes(searchQuery));
+            let filtered = fullLeaderboard;
+            if (document.getElementById('agSelector').value) {
+                filtered = filtered.filter(r => {
+                    if (isShowingBestTime) {
+                        return r.best_time_seconds;
+                    } else {
+                        return r.run_count > 0;
+                    }
+                });
+            }
+            viewLeaderboard = filtered.filter(r => r.name.toUpperCase().includes(searchQuery));
             sortViewLeaderboard();
             populateTbody();
         }
 
         function renderHeaders() {
             const thead = document.querySelector('#leaderboardTable thead');
+            let pointsHeader = '<th data-sort-column="2">Очки</th>';
+            if (document.getElementById('agSelector').value || selectedLocationSlug === 'all') {
+                const timeHeader = isShowingBestTime ? 'Лучшее время' : 'Среднее время';
+                pointsHeader = `<th data-sort-column="5" id="timeHeader">${timeHeader}</th>`;
+            }
             thead.innerHTML = `<tr>
                 <th data-sort-column="0">#</th>
                 <th id="nameHeaderCell"><span>Участник</span></th>
-                <th data-sort-column="2">Очки</th>
+                ${pointsHeader}
             </tr>`;
         }
 
         function populateTbody() {
             const tbody = document.getElementById('leaderboardBody');
-            tbody.innerHTML = viewLeaderboard.map(runner => {
+            tbody.innerHTML = viewLeaderboard.map((runner, index) => {
+                let thirdCell;
+                if (document.getElementById('agSelector').value || selectedLocationSlug === 'all') {
+                    const timeValue = isShowingBestTime ? runner.best_time_seconds : (runner.run_count > 0 ? runner.total_time_seconds / runner.run_count : null);
+                    const timeFormatted = formatTime(timeValue);
+                    if (isShowingBestTime && runner.best_time_race_url) {
+                        thirdCell = `<td><a href="${runner.best_time_race_url}" target="_blank">${timeFormatted}</a></td>`;
+                    } else {
+                        thirdCell = `<td>${timeFormatted}</td>`;
+                    }
+                } else {
+                    thirdCell = `<td>${runner.total_score ? runner.total_score.toFixed(2) : '-'}</td>`;
+                }
+
                 const nameCellContent = isDetailedView ? getDetailedSubInfo(runner) : '';
+                const rank = (currentPage - 1) * 1000 + index + 1;
+
                 return `<tr>
-                    <td class="place">${fullLeaderboard.indexOf(runner) + 1}</td>
+                    <td class="place">${rank}</td>
                     <td class="runner-cell"><div class="runner-info">${getRunnerNameWithEmoji(runner)}</div>${nameCellContent}</td>
-                    <td>${runner.total_score.toFixed(2)}</td>
+                    ${thirdCell}
                 </tr>`;
             }).join('');
         }
@@ -497,17 +595,30 @@
             const timeLabel = isShowingBestTime ? 'лучшее' : 'среднее';
             const timeValue = isShowingBestTime ? runner.best_time_seconds : (runner.run_count > 0 ? runner.total_time_seconds / runner.run_count : null);
             const timeFormatted = formatTime(timeValue);
-            const raceNumHTML = (isShowingBestTime && runner.best_time_race_number) ? ` (#${runner.best_time_race_number})` : '';
-            const medals = `<span class="medal-gold">${runner.gold_medals}</span>-<span class="medal-silver">${runner.silver_medals}</span>-<span class="medal-bronze">${runner.bronze_medals}</span>`;
+            let timeHTML;
+            if (isShowingBestTime && runner.best_time_race_url) {
+                timeHTML = `<a href="${runner.best_time_race_url}" target="_blank">${timeFormatted}</a>`;
+            } else {
+                timeHTML = timeFormatted;
+            }
+            let medalsHTML = '';
+            if (selectedLocationSlug !== 'all') {
+                medalsHTML = `<span class="info-block"><span class="sortable" data-sort-column="6">• медали</span>: <span class="medal-gold">${runner.gold_medals}</span>-<span class="medal-silver">${runner.silver_medals}</span>-<span class="medal-bronze">${runner.bronze_medals}</span></span>`;
+            }
             return `<div class="sub-info">
                 <span class="info-block"><span class="sortable" data-sort-column="3">забегов</span> ${runner.run_count}</span>
                 <span class="info-block"><span class="sortable" data-sort-column="4">• волонтерств</span> ${runner.volunteer_count}</span>
-                <span class="info-block">• <span class="sortable" id="timeLabel">${timeLabel} время</span>: <span class="sortable" data-sort-column="5">${timeFormatted}${raceNumHTML}</span></span>
-                <span class="info-block"><span class="sortable" data-sort-column="6">• медали</span>: ${medals}</span>
+                <span class="info-block">• <span class="sortable" id="timeLabel">${timeLabel} время</span>: <span class="sortable" data-sort-column="5">${timeHTML}</span></span>
+                ${medalsHTML}
             </div>`;
         }
         
         function handleTableClick(e) {
+            if (e.target.id === 'timeHeader') {
+                toggleTimeDisplay();
+                sortTable(5);
+                return;
+            }
             const sortable = e.target.closest('[data-sort-column]');
             if (sortable) {
                 sortTable(parseInt(sortable.dataset.sortColumn, 10));
@@ -526,7 +637,7 @@
         function showSearchInput(cell, defaultText) {
             if (cell.querySelector('input')) return;
             cell.onclick = null;
-            cell.innerHTML = `<input type="text" value="${searchQuery}" onkeyup="onSearchInput(event)" onblur="hideSearchInput(this, '${defaultText}')" placeholder="Поиск...">`;
+            cell.innerHTML = `<input type="text" class="name-search-input" value="${searchQuery}" onkeyup="onSearchInput(event)" onblur="hideSearchInput(this, '${defaultText}')" placeholder="Поиск...">`;
             cell.querySelector('input').focus();
         }
 
@@ -537,7 +648,6 @@
 
         function onSearchInput(event) {
             searchQuery = event.target.value.toUpperCase();
-            if (event.key === 'Enter' || event.key === 'Escape') event.target.blur();
             applyFiltersAndRender();
         }
 
@@ -549,13 +659,16 @@
 
         function toggleTimeDisplay() {
             isShowingBestTime = !isShowingBestTime;
-            populateTbody();
+            renderHeaders();
+            applyFiltersAndRender();
         }
 
         function sortTable(columnIndex) {
             const DESC_FIRST_COLUMNS = [2, 3, 4, 6]; // Points, Runs, Volunteers, Medals
             let direction;
-            if (currentSort.column === columnIndex) {
+            if (columnIndex === 5) {
+                direction = 'asc';
+            } else if (currentSort.column === columnIndex) {
                 direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
             } else {
                 direction = DESC_FIRST_COLUMNS.includes(columnIndex) ? 'desc' : 'asc';
@@ -566,7 +679,7 @@
 
         function showRunner(name) {
             searchQuery = name.toUpperCase();
-            const searchInput = document.querySelector('#nameHeaderCell input');
+            const searchInput = document.querySelector('#name-search-input');
             if(searchInput) searchInput.value = name;
             applyFiltersAndRender();
         }
@@ -606,10 +719,26 @@
             const recordDiv = document.getElementById('fastestRecord');
             if (fastest && fastest.time != null) {
                 const runnerNameHTML = `<b style="cursor: pointer; font-weight: bold;" onclick="showRunner('${fastest.name}')">${fastest.name}</b>`;
-                const raceNumHTML = fastest.race_number ? ` (#${fastest.race_number})` : '';
                 const ageText = fastest.age_days != null ? `${fastest.age_days} дней назад` : '';
+                
+                let recordLabel = "Рекорд трассы:";
+                let locationHTML = '';
+                if (selectedLocationSlug === 'all') {
+                    recordLabel = "Рекорд 5вёрст:";
+                    if (fastest.location_slug) {
+                        const location = allLocations.find(l => l.slug === fastest.location_slug);
+                        const locationName = location ? location.name : fastest.location_slug;
+                        const raceNum = fastest.race_number ? `#${fastest.race_number}` : '';
+                        const url = `https://5verst.ru/${fastest.location_slug}/results/${fastest.date}/`;
+                        locationHTML = ` - <a href="${url}" target="_blank" style="color: inherit;">${locationName} ${raceNum}</a>`;
+                    }
+                } else {
+                    const raceNum = fastest.race_number ? ` (#${fastest.race_number})` : '';
+                    locationHTML = raceNum;
+                }
+
                 recordDiv.innerHTML = `
-                    <div>Рекорд трассы: ${runnerNameHTML} (${formatTime(fastest.time)})${raceNumHTML}</div>
+                    <div>${recordLabel} ${runnerNameHTML}${locationHTML} (${formatTime(fastest.time)})</div>
                     <div style="font-size: 0.9em; color: var(--subtle-text-color);">${ageText}</div>
                 `;
             } else {
@@ -635,6 +764,55 @@
             else if ([5, 6, 7].includes(month)) seasonName = 'Лето';
             else seasonName = 'Осень';
             document.getElementById('currentSeasonLabel').textContent = `${seasonName} '${year}`;
+        }
+
+        function renderPaginator() {
+            const paginator = document.getElementById('paginator');
+            if (totalPages <= 1) {
+                paginator.innerHTML = '';
+                return;
+            }
+
+            let html = `<span class="page-info">${currentPage} из ${totalPages}</span>`;
+            if (currentPage > 1) {
+                html += `<a href="#" data-page="${currentPage - 1}">&laquo;</a>`;
+            }
+
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                html += `<a href="#" data-page="1">1</a>`;
+                if (startPage > 2) {
+                    html += `<span>...</span>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === currentPage) {
+                    html += `<span class="active">${i}</span>`;
+                } else {
+                    html += `<a href="#" data-page="${i}">${i}</a>`;
+                }
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<span>...</span>`;
+                }
+                html += `<a href="#" data-page="${totalPages}">${totalPages}</a>`;
+            }
+
+            if (currentPage < totalPages) {
+                html += `<a href="#" data-page="${currentPage + 1}">&raquo;</a>`;
+            }
+
+            paginator.innerHTML = html;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            applyFilters();
         }
     </script>
 </body>

@@ -93,7 +93,7 @@ def load_results(db_path, race_date, location_slug):
 def load_all_results(db_path, location_slug=None):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    if location_slug:
+    if location_slug and location_slug != 'all':
         cursor.execute('SELECT race_date, race_number, data, location_slug FROM race_results WHERE location_slug = ? ORDER BY race_date DESC', (location_slug,))
     else:
         cursor.execute('SELECT race_date, race_number, data, location_slug FROM race_results ORDER BY race_date DESC')
@@ -115,4 +115,51 @@ def load_all_results(db_path, location_slug=None):
         except json.JSONDecodeError:
             print(f"Warning: Could not decode JSON for race_date {row[0]}")
             continue
+    return results
+
+def get_all_age_groups(db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT data FROM race_results')
+    rows = cursor.fetchall()
+    conn.close()
+    age_groups = set()
+    for row in rows:
+        if row[0] is None:
+            continue
+        try:
+            data = json.loads(row[0])
+            for runner in data.get('runners', []):
+                if runner.get('age_group') and runner.get('gender'):
+                    age_groups.add(f"{runner['gender']}{runner['age_group']}")
+        except json.JSONDecodeError:
+            continue
+    return sorted(list(age_groups))
+
+def search_runners(db_path, query):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT data FROM race_results')
+    rows = cursor.fetchall()
+    conn.close()
+    
+    results = []
+    seen_runners = set()
+
+    for row in rows:
+        if row[0] is None:
+            continue
+        try:
+            data = json.loads(row[0])
+            for runner in data.get('runners', []):
+                runner_id = str(runner.get('id'))
+                runner_name = runner.get('name', '').lower()
+                
+                if runner_id and (query.lower() in runner_id or query.lower() in runner_name):
+                    if runner_id not in seen_runners:
+                        results.append(runner)
+                        seen_runners.add(runner_id)
+        except json.JSONDecodeError:
+            continue
+            
     return results

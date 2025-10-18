@@ -2,6 +2,7 @@ from flask import Flask, jsonify, render_template, request
 import os
 import db_manager
 from datetime import datetime
+import math
 
 app = Flask(__name__)
 DB_PATH = os.path.join(os.path.dirname(__file__), db_manager.DB_NAME)
@@ -19,12 +20,15 @@ def get_current_season(month):
             return season
     return None
 
-def calculate_leaderboard(races_data):
+def calculate_leaderboard(races_data, ag_filter=None):
     participants = {}
     for race in races_data:
         race_content = race.get('data', {})
         runners = race_content.get('runners', [])
         volunteers = race_content.get('volunteers', [])
+
+        if ag_filter and ag_filter != 'all':
+            runners = [r for r in runners if f"{r.get('gender')}{r.get('age_group')}" == ag_filter]
 
         runner_ids_this_race = {r['id'] for r in runners if r.get('id')}
 
@@ -38,7 +42,8 @@ def calculate_leaderboard(races_data):
                     'name': runner.get('name'), 'total_score': 0.0, 'run_count': 0, 'volunteer_count': 0,
                     'total_time_seconds': 0, 'gender': 'Н/Д', 'best_time_seconds': float('inf'),
                     'best_time_race_number': None, 'age_group': None,
-                    'gold_medals': 0, 'silver_medals': 0, 'bronze_medals': 0
+                    'gold_medals': 0, 'silver_medals': 0, 'bronze_medals': 0,
+                    'best_time_date': None, 'best_time_location_slug': None
                 }
             
             stats = participants[runner_id]
@@ -50,6 +55,8 @@ def calculate_leaderboard(races_data):
             if runner.get('time_in_seconds', float('inf')) < stats['best_time_seconds']:
                 stats['best_time_seconds'] = runner['time_in_seconds']
                 stats['best_time_race_number'] = race.get('race_number')
+                stats['best_time_date'] = race.get('race_date')
+                stats['best_time_location_slug'] = race.get('location_slug')
             
             if runner.get('age_group'):
                 stats['age_group'] = runner['age_group']
@@ -77,7 +84,8 @@ def calculate_leaderboard(races_data):
                     'name': volunteer.get('name'), 'total_score': 0.0, 'run_count': 0, 'volunteer_count': 0,
                     'total_time_seconds': 0, 'gender': 'Н/Д', 'best_time_seconds': float('inf'),
                     'best_time_race_number': None, 'age_group': None,
-                    'gold_medals': 0, 'silver_medals': 0, 'bronze_medals': 0
+                    'gold_medals': 0, 'silver_medals': 0, 'bronze_medals': 0,
+                    'best_time_date': None, 'best_time_location_slug': None
                 }
 
             stats = participants[volunteer_id]
@@ -93,10 +101,108 @@ def calculate_leaderboard(races_data):
     for participant_id, stats in participants.items():
         stats['id'] = participant_id
         stats['total_score'] = stats['total_score'] / 10
+        if stats['best_time_location_slug'] and stats['best_time_date']:
+            stats['best_time_race_url'] = f"https://5verst.ru/{stats['best_time_location_slug']}/results/{stats['best_time_date']}/"
+        else:
+            stats['best_time_race_url'] = None
         leaderboard.append(stats)
 
-    leaderboard.sort(key=lambda x: x['total_score'], reverse=True)
+    if ag_filter:
+        leaderboard.sort(key=lambda x: x['best_time_seconds'])
+    else:
+        leaderboard.sort(key=lambda x: x['total_score'], reverse=True)
+        
     return leaderboard
+
+def get_all_locations_data(page, ag_filter):
+    all_races = db_manager.load_all_results(DB_PATH, location_slug='all')
+    participants = {}
+    for race in all_races:
+        runners = race.get('data', {}).get('runners', [])
+        volunteers = race.get('data', {}).get('volunteers', [])
+        runner_ids_this_race = {r['id'] for r in runners if r.get('id')}
+
+        for runner in runners:
+            runner_id = runner.get('id')
+            if not runner_id:
+                continue
+
+            if runner_id not in participants:
+                participants[runner_id] = {
+                    'name': runner.get('name'), 'run_count': 0, 'volunteer_count': 0,
+                    'total_time_seconds': 0, 'best_time_seconds': float('inf'),
+                    'age_group': None, 'best_time_date': None, 'best_time_race_number': None,
+                    'best_time_location_slug': None, 'gold_medals': 0, 'silver_medals': 0, 'bronze_medals': 0,
+                    'gender': runner.get('gender'), 'total_score': 0.0
+                }
+
+            stats = participants[runner_id]
+            stats['name'] = runner.get('name')
+            stats['run_count'] += 1
+            stats['total_score'] += runner.get('score', 0.0)
+            stats['total_time_seconds'] += runner.get('time_in_seconds', 0)
+            if runner.get('time_in_seconds', float('inf')) < stats['best_time_seconds']:
+                stats['best_time_seconds'] = runner['time_in_seconds']
+                stats['best_time_date'] = race.get('race_date')
+                stats['best_time_race_number'] = race.get('race_number')
+                stats['best_time_location_slug'] = race.get('location_slug')
+            
+            if runner.get('age_group'):
+                stats['age_group'] = runner.get('age_group')
+
+            gender = runner.get('gender')
+            if gender == 'М':
+                if runner.get('overall_rank') == 1: stats['gold_medals'] += 1
+                elif runner.get('overall_rank') == 2: stats['silver_medals'] += 1
+                elif runner.get('overall_rank') == 3: stats['bronze_medals'] += 1
+            elif gender == 'Ж':
+                if runner.get('gender_rank') == 1: stats['gold_medals'] += 1
+                elif runner.get('gender_rank') == 2: stats['silver_medals'] += 1
+                elif runner.get('gender_rank') == 3: stats['bronze_medals'] += 1
+        
+        for volunteer in volunteers:
+            volunteer_id = volunteer.get('id')
+            if not volunteer_id:
+                continue
+            if volunteer_id not in participants:
+                participants[volunteer_id] = {
+                    'name': volunteer.get('name'), 'run_count': 0, 'volunteer_count': 0,
+                    'total_time_seconds': 0, 'best_time_seconds': float('inf'),
+                    'age_group': None, 'best_time_date': None, 'best_time_race_number': None,
+                    'best_time_location_slug': None, 'gold_medals': 0, 'silver_medals': 0, 'bronze_medals': 0,
+                    'gender': None, 'total_score': 0.0
+                }
+            
+            stats = participants[volunteer_id]
+            stats['name'] = volunteer.get('name')
+            stats['volunteer_count'] += 1
+            if volunteer_id in runner_ids_this_race:
+                stats['total_score'] += 5
+            else:
+                stats['total_score'] += 55
+
+    leaderboard = []
+    for participant_id, stats in participants.items():
+        stats['id'] = participant_id
+        stats['total_score'] = stats['total_score'] / 10
+        if stats['best_time_location_slug'] and stats['best_time_date']:
+            stats['best_time_race_url'] = f"https://5verst.ru/{stats['best_time_location_slug']}/results/{stats['best_time_date']}/"
+        else:
+            stats['best_time_race_url'] = None
+        leaderboard.append(stats)
+
+    if ag_filter and ag_filter != 'all':
+        leaderboard = [p for p in leaderboard if f"{p.get('gender')}{p.get('age_group')}" == ag_filter]
+
+    leaderboard.sort(key=lambda x: x['best_time_seconds'])
+
+    page_size = 1000
+    start_index = (page - 1) * page_size
+    end_index = start_index + page_size
+    paginated_leaderboard = leaderboard[start_index:end_index]
+    total_pages = math.ceil(len(leaderboard) / page_size)
+
+    return paginated_leaderboard, total_pages
 
 @app.route('/')
 def index():
@@ -106,6 +212,41 @@ def index():
 def get_data():
     try:
         location_slug = request.args.get('location', default='korolev', type=str)
+        page = request.args.get('page', default=1, type=int)
+        ag_filter = request.args.get('ag', default=None, type=str)
+
+        if location_slug == 'all':
+            leaderboard_data, total_pages = get_all_locations_data(page, ag_filter)
+            
+            fastest_runner = None
+            if leaderboard_data:
+                fastest_runner = leaderboard_data[0]
+
+            record_age_days = None
+            if fastest_runner and fastest_runner.get('best_time_date'):
+                try:
+                    record_date_obj = datetime.strptime(fastest_runner['best_time_date'], '%d.%m.%Y')
+                    record_age_days = (datetime.now() - record_date_obj).days
+                except (ValueError, TypeError): pass
+
+            response_data = {
+                'leaderboard': leaderboard_data,
+                'pages': total_pages,
+                'metadata': {
+                    'top_male': None,
+                    'top_female': None,
+                    'overall_fastest': {
+                        'name': fastest_runner.get('name') if fastest_runner else None,
+                        'time': fastest_runner.get('best_time_seconds') if fastest_runner else None,
+                        'race_number': fastest_runner.get('best_time_race_number') if fastest_runner else None,
+                        'age_days': record_age_days,
+                        'location_slug': fastest_runner.get('best_time_location_slug') if fastest_runner else None,
+                        'date': fastest_runner.get('best_time_date') if fastest_runner else None
+                    }
+                }
+            }
+            return jsonify(response_data)
+
         year_filter = request.args.get('year', default=None, type=int)
         season_filter = request.args.get('season', default=None, type=str)
         month_filter = request.args.get('month', default=None, type=int)
@@ -148,7 +289,7 @@ def get_data():
                     temp_races = [r for r in temp_races if datetime.strptime(r['race_date'], '%d.%m.%Y').month == month_filter]
                 races_to_process = temp_races
 
-        leaderboard_data = calculate_leaderboard(races_to_process)
+        leaderboard_data = calculate_leaderboard(races_to_process, ag_filter)
 
         for stats in leaderboard_data:
             if stats['best_time_seconds'] == float('inf'):
@@ -175,6 +316,7 @@ def get_data():
 
         response_data = {
             'leaderboard': leaderboard_data,
+            'pages': 1,
             'metadata': {
                 'top_male': top_male,
                 'top_female': top_female,
@@ -193,11 +335,38 @@ def get_data():
         traceback.print_exc()
         return jsonify({"error": "An internal server error occurred."}), 500
 
+
+@app.route('/api/global-search')
+def global_search():
+    query = request.args.get('query', default='', type=str).upper()
+    if not query:
+        return jsonify([])
+
+    all_races = db_manager.load_all_results(DB_PATH, location_slug='all')
+    matching_runners = {}
+    for race in all_races:
+        for runner in race.get('data', {}).get('runners', []):
+            runner_id = runner.get('id')
+            runner_name = runner.get('name', '').upper()
+            if runner_id and (query in runner_name or query in str(runner_id)):
+                if runner_id not in matching_runners:
+                    matching_runners[runner_id] = {
+                        'id': runner_id,
+                        'name': runner.get('name')
+                    }
+    return jsonify(list(matching_runners.values()))
+
+
 @app.route('/api/locations')
 def get_locations():
     """API эндпоинт для получения списка всех локаций, у которых есть забеги."""
     locations = db_manager.load_locations_with_races(DB_PATH)
     return jsonify(locations)
+
+@app.route('/api/age-groups')
+def get_age_groups():
+    age_groups = db_manager.get_all_age_groups(DB_PATH)
+    return jsonify(age_groups)
 
 @app.route('/api/years')
 def get_available_years():
@@ -216,6 +385,15 @@ def get_available_races():
     ]
     races.sort(key=lambda x: x['number'], reverse=True)
     return jsonify(races)
+
+@app.route('/search')
+def search():
+    query = request.args.get('query', '')
+    if not query:
+        return render_template('search_results.html', results=[], query=query)
+
+    search_results = db_manager.search_runners(DB_PATH, query)
+    return render_template('search_results.html', results=search_results, query=query)
 
 if __name__ == '__main__':
     db_manager.init_db(DB_PATH)
