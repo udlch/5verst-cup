@@ -190,7 +190,7 @@ if __name__ == '__main__':
 
     tasks_to_run = []
     today = date.today()
-    update_threshold = today - timedelta(days=3)
+    update_threshold = today - timedelta(days=2)
 
     for loc in locations_to_process:
         print(f"--- Поиск забегов для локации: {loc['name']} ---")

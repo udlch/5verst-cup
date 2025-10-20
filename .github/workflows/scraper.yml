@@ -3,7 +3,7 @@ name: Run 5verst Scraper
 on:
   workflow_dispatch: # Allows manual triggering
   schedule:
-    - cron: '0 2 * * *' # Runs at 2 AM UTC every day
+    - cron: '0 * * * *' # Runs at the start of every hour
 
 jobs:
   scrape:
@@ -15,16 +15,25 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11' # Or whatever version you use
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run scraper
+      - name: Run scraper (Full Scan for Manual Trigger)
+        if: github.event_name == 'workflow_dispatch'
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_DB_ID: ${{ secrets.CLOUDFLARE_DB_ID }}
         run: python main.py --full
+
+      - name: Run scraper (Hourly Smart Update)
+        if: github.event_name == 'schedule'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_DB_ID: ${{ secrets.CLOUDFLARE_DB_ID }}
+        run: python main.py
