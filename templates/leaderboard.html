@@ -210,7 +210,7 @@
         let isDetailedView = false, isShowingBestTime = true;
         let currentSort = { column: 0, direction: 'asc' };
         let searchQuery = '';
-        let selectedLocationSlug = 'korolev';
+        let selectedLocationSlug = 'all';
         let currentPage = 1;
         let totalPages = 1;
         let agFilter = 'all';
@@ -433,9 +433,9 @@
             const currentMonth = monthSelector.value;
             monthSelector.innerHTML = '<option value="all">Месяц</option>';
             let relevantMonths = Array.from(MONTHS.entries());
-            if (season !== 'all') {
+            if (season && season !== 'all' && SEASON_MONTHS[season]) {
                 const seasonMonthIndexes = SEASON_MONTHS[season];
-                if (seasonMonthIndexes) relevantMonths = relevantMonths.filter(([i, _]) => seasonMonthIndexes.includes(i));
+                relevantMonths = relevantMonths.filter(([i, _]) => seasonMonthIndexes.includes(i));
             }
             relevantMonths.forEach(([i, name]) => monthSelector.add(new Option(name, i + 1)));
             monthSelector.value = currentMonth;
@@ -445,7 +445,7 @@
             raceSelector.innerHTML = '<option value="all">Забег</option>';
             let filteredRaces = allRaces;
             if (year !== 'all') filteredRaces = filteredRaces.filter(r => r.date.endsWith(year));
-            if (season !== 'all') {
+            if (season && season !== 'all' && SEASON_MONTHS[season]) {
                 const seasonMonthIndexes = SEASON_MONTHS[season].map(m => m + 1);
                 filteredRaces = filteredRaces.filter(r => {
                     const raceMonth = parseInt(r.date.split('.')[1], 10);
@@ -483,6 +483,7 @@
         }
 
         function loadData(params) {
+            console.log("--- JS DEBUG: loadData() called with params:", params);
             const cleanParams = Object.fromEntries(
                 Object.entries(params).filter(([k, v]) => {
                     if (!v || v === '') return false;
@@ -528,7 +529,6 @@
         }
         
         function handleFetchError(error) {
-            console.error('Fetch error:', error);
             const loadingDiv = document.getElementById('loading');
             loadingDiv.innerHTML = 'Ошибка загрузки данных. Попробуйте обновить страницу или проверьте консоль сервера.';
             loadingDiv.style.color = 'red';

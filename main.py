@@ -148,13 +148,18 @@ def process_race(race, location_slug):
     if html_content:
         scraped_data = parse_html_for_results(html_content)
         if scraped_data and (scraped_data.get('runners') or scraped_data.get('volunteers')):
-            db_manager.save_results(DB_PATH, race['date'], location_slug, race['number'], scraped_data)
+            db_manager.save_results(race['date'], location_slug, race['number'], scraped_data)
             print(f"    -> Сохранено: {race['date']} ({location_slug}) - {len(scraped_data['runners'])} бегунов, {len(scraped_data['volunteers'])} волонтеров.")
         else:
-            db_manager.save_results(DB_PATH, race['date'], location_slug, race['number'], {'runners': [], 'volunteers': []})
+            db_manager.save_results(race['date'], location_slug, race['number'], {'runners': [], 'volunteers': []})
 
 if __name__ == '__main__':
     db_manager.init_db()
+
+    # Ensure 'korolev' location always exists as a fallback
+    korolev_location = [{'name': 'Королёв', 'slug': 'korolev', 'url': 'https://5verst.ru/korolev/'}]
+    db_manager.save_locations(korolev_location)
+
     
     print("Этап 1: Получение списка всех локаций...")
     locations = get_all_locations()
@@ -209,9 +214,17 @@ if __name__ == '__main__':
     if not tasks_to_run:
         print("\nНет новых забегов для обновления.")
     else:
-        print(f"\nВсего задач на скачивание: {len(tasks_to_run)}. Запускаем {min(10, len(tasks_to_run))} потоков...")
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(process_race, task[0], task[1]) for task in tasks_to_run]
-            concurrent.futures.wait(futures)
+        print(f"\nВсего задач на скачивание: {len(tasks_to_run)}. Запускаем {min(2, len(tasks_to_run))} потоков...")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            # Submit tasks
+            future_to_task = {executor.submit(process_race, task[0], task[1]): task for task in tasks_to_run}
+            
+            # Wait for completion and check for errors
+            for future in concurrent.futures.as_completed(future_to_task):
+                task = future_to_task[future]
+                try:
+                    future.result()  # This will raise an exception if the task failed
+                except Exception as exc:
+                    print(f"!!! Ошибка при обработке задачи {task}: {exc}")
             
     print("\nСбор данных завершен.")

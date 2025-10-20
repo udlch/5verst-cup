@@ -115,7 +115,7 @@ def calculate_leaderboard(races_data, ag_filter=None):
     return leaderboard
 
 def get_all_locations_data(page, ag_filter):
-    all_races = db_manager.load_all_results(DB_PATH, location_slug='all')
+    all_races = db_manager.load_all_results(location_slug='all')
     participants = {}
     for race in all_races:
         runners = race.get('data', {}).get('runners', [])
@@ -191,10 +191,14 @@ def get_all_locations_data(page, ag_filter):
             stats['best_time_race_url'] = None
         leaderboard.append(stats)
 
+    for stats in leaderboard:
+        if stats['best_time_seconds'] == float('inf'):
+            stats['best_time_seconds'] = None
+
     if ag_filter and ag_filter != 'all':
         leaderboard = [p for p in leaderboard if f"{p.get('gender')}{p.get('age_group')}" == ag_filter]
 
-    leaderboard.sort(key=lambda x: x['best_time_seconds'])
+    leaderboard.sort(key=lambda x: (x['best_time_seconds'] is None, x['best_time_seconds']))
 
     page_size = 1000
     start_index = (page - 1) * page_size
@@ -254,7 +258,7 @@ def get_data():
             return jsonify(response_data)
 
         # Unified data fetching and filtering for all other cases, including filtered 'all'
-        all_races = db_manager.load_all_results(DB_PATH, location_slug=location_slug)
+        all_races = db_manager.load_all_results(location_slug=location_slug)
         races_to_process = all_races
 
         if race_number_filter:
@@ -349,7 +353,7 @@ def global_search():
     if not query:
         return jsonify([])
 
-    all_races = db_manager.load_all_results(DB_PATH, location_slug='all')
+    all_races = db_manager.load_all_results(location_slug='all')
     matching_runners = {}
     for race in all_races:
         for runner in race.get('data', {}).get('runners', []):
@@ -378,14 +382,14 @@ def get_age_groups():
 @app.route('/api/years')
 def get_available_years():
     location_slug = request.args.get('location', default='korolev', type=str)
-    all_races = db_manager.load_all_results(DB_PATH, location_slug=location_slug)
-    years = {datetime.strptime(race['race_date'], '%d.%m.%Y').year for race in all_races if race.get('data')}
+    all_races = db_manager.load_all_results(location_slug=location_slug)
+    years = {datetime.strptime(race['race_date'], '%d.%m.%Y').year for race in all_races if race.get('data') and race.get('race_date')}
     return jsonify(sorted(list(years), reverse=True))
 
 @app.route('/api/racedates')
 def get_available_races():
     location_slug = request.args.get('location', default='korolev', type=str)
-    all_races = db_manager.load_all_results(DB_PATH, location_slug=location_slug)
+    all_races = db_manager.load_all_results(location_slug=location_slug)
     races = [
         {"number": race['race_number'], "date": race['race_date']}
         for race in all_races if race.get('race_number') and race.get('race_number') > 0
@@ -399,7 +403,7 @@ def search():
     if not query:
         return render_template('search_results.html', results=[], query=query)
 
-    search_results = (query)
+    search_results = db_manager.search_runners(query)
     return render_template('search_results.html', results=search_results, query=query)
 
 if __name__ == '__main__':

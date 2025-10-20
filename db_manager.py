@@ -2,6 +2,7 @@ import os
 import requests
 import json
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
 
@@ -12,37 +13,53 @@ DB_ID = os.getenv("CLOUDFLARE_DB_ID")
 
 CLOUDFLARE_API_BASE_URL = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/d1/database/{DB_ID}"
 
+import time
+
 def _execute_batch(statements):
-    """Executes a batch of SQL statements (for CREATE, INSERT, UPDATE)."""
+    """Executes a batch of SQL statements by sending them one by one with retries."""
     if not all([ACCOUNT_ID, API_TOKEN, DB_ID]):
-        raise ValueError("Cloudflare D1 environment variables (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, CLOUDFLARE_DB_ID) are not set.")
+        raise ValueError("Cloudflare D1 environment variables are not set.")
 
     headers = {
         "Authorization": f"Bearer {API_TOKEN}",
         "Content-Type": "application/json"
     }
-    
-    # Ensure statements are in the correct format [{"sql": "...", "params": [...]}]
-    formatted_statements = []
-    for stmt in statements:
-        if isinstance(stmt, str):
-            formatted_statements.append({"sql": stmt, "params": []})
-        elif isinstance(stmt, dict) and "sql" in stmt:
-            formatted_statements.append(stmt)
 
-    try:
-        response = requests.post(f"{CLOUDFLARE_API_BASE_URL}/execute", headers=headers, json=formatted_statements)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error executing batch on Cloudflare D1: {e}")
-        if e.response is not None:
-            print(f"Response status: {e.response.status_code}")
-            print(f"Response text: {e.response.text}")
-        raise
+    results = []
+    for stmt in statements:
+        sql, params = None, []
+        if isinstance(stmt, str):
+            sql = stmt
+        elif isinstance(stmt, dict) and "sql" in stmt:
+            sql = stmt["sql"]
+            params = stmt.get("params", [])
+
+        if not sql:
+            continue
+
+        data = {"sql": sql, "params": params}
+        
+        for attempt in range(3): # Retry up to 3 times
+            try:
+                response = requests.post(f"{CLOUDFLARE_API_BASE_URL}/query", headers=headers, json=data)
+                response.raise_for_status()
+                results.append(response.json())
+                break # Success, exit retry loop
+            except requests.exceptions.RequestException as e:
+                if attempt < 2: # Not the last attempt
+                    print(f"  - Network error during batch, retrying in {attempt + 1}s...")
+                    time.sleep(attempt + 1)
+                    continue
+                else:
+                    print(f"Error executing statement on Cloudflare D1 after 3 attempts: {sql}")
+                    if e.response is not None:
+                        print(f"Response status: {e.response.status_code}")
+                        print(f"Response text: {e.response.text}")
+                    raise
+    return results
 
 def _execute_query(statement, params=None):
-    """Executes a single SELECT query and returns results."""
+    """Executes a single SELECT query with retries and returns results."""
     if not all([ACCOUNT_ID, API_TOKEN, DB_ID]):
         raise ValueError("Cloudflare D1 environment variables are not set.")
 
@@ -52,20 +69,25 @@ def _execute_query(statement, params=None):
     }
     data = {"sql": statement, "params": params or []}
 
-    try:
-        response = requests.post(f"{CLOUDFLARE_API_BASE_URL}/query", headers=headers, json=data)
-        response.raise_for_status()
-        # The D1 API returns a list of results, we care about the first one
-        result = response.json().get('result', [])
-        if result:
-            return result[0].get('results', [])
-        return []
-    except requests.exceptions.RequestException as e:
-        print(f"Error executing query on Cloudflare D1: {e}")
-        if e.response is not None:
-            print(f"Response status: {e.response.status_code}")
-            print(f"Response text: {e.response.text}")
-        raise
+    for attempt in range(3): # Retry up to 3 times
+        try:
+            response = requests.post(f"{CLOUDFLARE_API_BASE_URL}/query", headers=headers, json=data)
+            response.raise_for_status()
+            result = response.json().get('result', [])
+            if result:
+                return result[0].get('results', [])
+            return [] # Success, but no results
+        except requests.exceptions.RequestException as e:
+            if attempt < 2: # Not the last attempt
+                print(f"  - Network error during query, retrying in {attempt + 1}s...")
+                time.sleep(attempt + 1)
+                continue
+            else:
+                print(f"Error executing query on Cloudflare D1 after 3 attempts: {statement}")
+                if e.response is not None:
+                    print(f"Response status: {e.response.status_code}")
+                    print(f"Response text: {e.response.text}")
+                raise
 
 def init_db():
     statements = [
@@ -151,18 +173,17 @@ def load_all_results(location_slug=None):
         return results
 
     for row in rows:
-        if row['data'] is None:
+        if row.get('data') is None:
             continue
         try:
             data = json.loads(row['data'])
             results.append({
-                'race_date': row['race_date'],
-                'race_number': row['race_number'],
+                'race_date': row.get('race_date'),
+                'race_number': row.get('race_number'),
                 'data': data,
-                'location_slug': row['location_slug']
+                'location_slug': row.get('location_slug')
             })
-        except json.JSONDecodeError:
-            print(f"Warning: Could not decode JSON for race_date {row['race_date']}")
+        except (json.JSONDecodeError, TypeError) as e:
             continue
     return results
 
