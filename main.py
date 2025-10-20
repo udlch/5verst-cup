@@ -7,8 +7,9 @@ import db_manager
 import json
 import sys
 import concurrent.futures
+from dotenv import load_dotenv
 
-DB_PATH = os.path.join(os.path.dirname(__file__), db_manager.DB_NAME)
+load_dotenv()
 
 def get_all_locations():
     """Scrapes the main events page to get a list of all locations."""
@@ -153,7 +154,7 @@ def process_race(race, location_slug):
             db_manager.save_results(DB_PATH, race['date'], location_slug, race['number'], {'runners': [], 'volunteers': []})
 
 if __name__ == '__main__':
-    db_manager.init_db(DB_PATH)
+    db_manager.init_db()
     
     print("Этап 1: Получение списка всех локаций...")
     locations = get_all_locations()
@@ -161,7 +162,7 @@ if __name__ == '__main__':
         print("Не удалось получить список локаций. Выход.")
         sys.exit(1)
     
-    db_manager.save_locations(DB_PATH, locations)
+    (locations)
     print(f"Найдено и сохранено {len(locations)} локаций.")
 
     single_location_slug = None

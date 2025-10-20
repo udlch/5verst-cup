@@ -9,6 +9,9 @@ __pycache__/
 *.db
 *.db-journal
 
+# Environment variables
+.env
+
 # OS / Editor specific
 .DS_Store
 .idea/
