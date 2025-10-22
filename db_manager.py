@@ -162,11 +162,22 @@ def load_results(race_date, location_slug):
             return None
     return None
 
-def load_all_results(location_slug=None):
+def load_all_results(location_slug=None, limit=None, offset=None):
+    query_params = []
+    sql_query = 'SELECT race_date, race_number, data, location_slug FROM race_results'
+
     if location_slug and location_slug != 'all':
-        rows = _execute_query('SELECT race_date, race_number, data, location_slug FROM race_results WHERE location_slug = ? ORDER BY race_date DESC', [location_slug])
-    else:
-        rows = _execute_query('SELECT race_date, race_number, data, location_slug FROM race_results ORDER BY race_date DESC')
+        sql_query += ' WHERE location_slug = ?'
+        query_params.append(location_slug)
+    
+    sql_query += ' ORDER BY race_date DESC'
+
+    if limit is not None and offset is not None:
+        sql_query += ' LIMIT ? OFFSET ?'
+        query_params.append(limit)
+        query_params.append(offset)
+
+    rows = _execute_query(sql_query, query_params)
 
     results = []
     if not rows:
@@ -186,6 +197,18 @@ def load_all_results(location_slug=None):
         except (json.JSONDecodeError, TypeError) as e:
             continue
     return results
+
+def get_total_race_results_count(location_slug=None):
+    query_params = []
+    sql_query = 'SELECT COUNT(*) FROM race_results'
+    if location_slug and location_slug != 'all':
+        sql_query += ' WHERE location_slug = ?'
+        query_params.append(location_slug)
+    
+    rows = _execute_query(sql_query, query_params)
+    if rows and len(rows) > 0:
+        return rows[0]['COUNT(*)']
+    return 0
 
 def get_all_age_groups(location_slug=None):
     if location_slug and location_slug != 'all':

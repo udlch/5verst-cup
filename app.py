@@ -115,7 +115,12 @@ def calculate_leaderboard(races_data, ag_filter=None):
     return leaderboard
 
 def get_all_locations_data(page, ag_filter):
-    all_races = db_manager.load_all_results(location_slug='all')
+    page_size = 1000
+    offset = (page - 1) * page_size
+
+    all_races = db_manager.load_all_results(location_slug='all', limit=page_size, offset=offset)
+    total_races_count = db_manager.get_total_race_results_count(location_slug='all')
+
     participants = {}
     for race in all_races:
         runners = race.get('data', {}).get('runners', [])
@@ -200,13 +205,11 @@ def get_all_locations_data(page, ag_filter):
 
     leaderboard.sort(key=lambda x: (x['best_time_seconds'] is None, x['best_time_seconds']))
 
-    page_size = 1000
-    start_index = (page - 1) * page_size
-    end_index = start_index + page_size
-    paginated_leaderboard = leaderboard[start_index:end_index]
-    total_pages = math.ceil(len(leaderboard) / page_size)
+    # The leaderboard here is already paginated by db_manager.load_all_results
+    # So we just need to calculate total_pages based on total_races_count
+    total_pages = math.ceil(total_races_count / page_size)
 
-    return paginated_leaderboard, total_pages
+    return leaderboard, total_pages
 
 @app.route('/')
 def index():
