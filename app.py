@@ -411,6 +411,14 @@ def search():
     search_results = db_manager.search_runners(query)
     return render_template('search_results.html', results=search_results, query=query)
 
+@app.route('/manifest.json')
+def serve_manifest():
+    return app.send_static_file('manifest.json')
+
+@app.route('/sw.js')
+def serve_sw():
+    return app.send_static_file('sw.js')
+
 if __name__ == '__main__':
     db_manager.init_db()
     app.run(debug=True, port=5001)
