@@ -187,8 +187,11 @@ def load_all_results(location_slug=None):
             continue
     return results
 
-def get_all_age_groups():
-    rows = _execute_query('SELECT data FROM race_results')
+def get_all_age_groups(location_slug=None):
+    if location_slug and location_slug != 'all':
+        rows = _execute_query('SELECT data FROM race_results WHERE location_slug = ?', [location_slug])
+    else:
+        rows = _execute_query('SELECT data FROM race_results')
     age_groups = set()
     if not rows:
         return []

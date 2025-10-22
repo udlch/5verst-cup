@@ -164,7 +164,7 @@ if __name__ == '__main__':
     locations = get_all_locations()
     if not locations:
         print("Не удалось получить список локаций. Выход.")
-        sys.exit(1)
+        sys.exit(0)
     
     db_manager.save_locations(locations)
     print(f"Найдено и сохранено {len(locations)} локаций.")

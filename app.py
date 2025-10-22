@@ -307,7 +307,11 @@ def get_data():
         top_male, top_female, best_run_info, fastest_time = (None, None, None, float('inf'))
 
         for race in races_to_process:
-            for runner in race.get('data', {}).get('runners', []):
+            runners_to_check = race.get('data', {}).get('runners', [])
+            if ag_filter and ag_filter != 'all':
+                runners_to_check = [r for r in runners_to_check if f"{r.get('gender')}{r.get('age_group')}" == ag_filter]
+
+            for runner in runners_to_check:
                 if (time := runner.get('time_in_seconds')) is not None and time < fastest_time:
                     fastest_time = time
                     best_run_info = {'name': runner.get('name'), 'time': time, 'race_number': race.get('race_number'), 'date': race.get('race_date'), 'location_slug': race.get('location_slug')}
@@ -376,7 +380,8 @@ def get_locations():
 
 @app.route('/api/age-groups')
 def get_age_groups():
-    age_groups = db_manager.get_all_age_groups()
+    location_slug = request.args.get('location', default=None, type=str)
+    age_groups = db_manager.get_all_age_groups(location_slug=location_slug)
     return jsonify(age_groups)
 
 @app.route('/api/years')
