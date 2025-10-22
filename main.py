@@ -160,14 +160,13 @@ if __name__ == '__main__':
     korolev_location = [{'name': 'Королёв', 'slug': 'korolev', 'url': 'https://5verst.ru/korolev/'}]
     db_manager.save_locations(korolev_location)
 
-    
     print("Этап 1: Получение списка всех локаций...")
     locations = get_all_locations()
     if not locations:
         print("Не удалось получить список локаций. Выход.")
         sys.exit(1)
     
-    (locations)
+    db_manager.save_locations(locations)
     print(f"Найдено и сохранено {len(locations)} локаций.")
 
     single_location_slug = None

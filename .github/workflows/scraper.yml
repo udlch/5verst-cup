@@ -23,6 +23,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run scraper (Full Scan for Manual Trigger)
+        # NOTE: This full scan will likely time out on its first run (6-hour limit).
+        # It is intended for forcing a full data refresh after the DB is already populated.
         if: github.event_name == 'workflow_dispatch'
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
