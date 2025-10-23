@@ -47,7 +47,28 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Шаг 3: Сбор данных
+echo_green "\nШаг 3: Запуск сбора данных в фоновом режиме..."
+SCRAPE_FLAG="--full"
+LOCATION_SLUG=""
 
+# Проверяем, был ли передан флаг локации
+if [ $# -gt 0 ]; then
+    if [[ $1 == --* ]]; then
+        LOCATION_SLUG=$1
+        echo "Выбран режим для одной локации: ${LOCATION_SLUG:2}"
+        SCRAPE_FLAG=$LOCATION_SLUG
+    fi
+fi
+
+# Запускаем в фоне через nohup
+COMMAND_TO_RUN="\"$PROJECT_DIR/venv/bin/python\" \"$PROJECT_DIR/main.py\" \"$SCRAPE_FLAG\""
+nohup bash -c "$COMMAND_TO_RUN" > "$PROJECT_DIR/scraper.log" 2>&1 &
+
+echo "Сбор данных запущен в фоновом режиме."
+echo "Процесс может занять много времени."
+echo "Чтобы следить за ходом выполнения, используйте команду:"
+echo "tail -f $PROJECT_DIR/scraper.log"
 
 # Шаг 4: Настройка systemd
 echo_green "\nШаг 4: Настройка системного сервиса (systemd)..."
@@ -87,7 +108,15 @@ if [ $? -ne 0 ]; then
 fi
 echo_green "Сервис успешно запущен."
 
-
+# Шаг 5: Настройка cron
+echo_green "\nШаг 5: Настройка cron для автоматического обновления..."
+CRON_JOB="0 * * * * $PROJECT_DIR/venv/bin/python $PROJECT_DIR/main.py >> $PROJECT_DIR/scraper.log 2>&1"
+(crontab -l 2>/dev/null | grep -v -F "$PROJECT_DIR/main.py" ; echo "$CRON_JOB") | crontab -
+if [ $? -ne 0 ]; then
+    echo_red "Не удалось настроить cron. Пожалуйста, добавьте строку вручную, выполнив 'crontab -e'."
+else
+    echo_green "Cron успешно настроен."
+fi
 
 echo_green "\nУстановка завершена!"
 echo "- Ваше приложение работает в фоновом режиме."

@@ -5,7 +5,7 @@ from datetime import datetime
 import math
 
 app = Flask(__name__)
-
+DB_PATH = os.path.join(os.path.dirname(__file__), db_manager.DB_NAME)
 
 SEASONS = {
     'зима': [12, 1, 2],
@@ -115,12 +115,7 @@ def calculate_leaderboard(races_data, ag_filter=None):
     return leaderboard
 
 def get_all_locations_data(page, ag_filter):
-    page_size = 1000
-    offset = (page - 1) * page_size
-
-    all_races = db_manager.load_all_results(location_slug='all', limit=page_size, offset=offset)
-    total_races_count = db_manager.get_total_race_results_count(location_slug='all')
-
+    all_races = db_manager.load_all_results(DB_PATH, location_slug='all')
     participants = {}
     for race in all_races:
         runners = race.get('data', {}).get('runners', [])
@@ -196,20 +191,18 @@ def get_all_locations_data(page, ag_filter):
             stats['best_time_race_url'] = None
         leaderboard.append(stats)
 
-    for stats in leaderboard:
-        if stats['best_time_seconds'] == float('inf'):
-            stats['best_time_seconds'] = None
-
     if ag_filter and ag_filter != 'all':
         leaderboard = [p for p in leaderboard if f"{p.get('gender')}{p.get('age_group')}" == ag_filter]
 
-    leaderboard.sort(key=lambda x: (x['best_time_seconds'] is None, x['best_time_seconds']))
+    leaderboard.sort(key=lambda x: x['best_time_seconds'])
 
-    # The leaderboard here is already paginated by db_manager.load_all_results
-    # So we just need to calculate total_pages based on total_races_count
-    total_pages = math.ceil(total_races_count / page_size)
+    page_size = 1000
+    start_index = (page - 1) * page_size
+    end_index = start_index + page_size
+    paginated_leaderboard = leaderboard[start_index:end_index]
+    total_pages = math.ceil(len(leaderboard) / page_size)
 
-    return leaderboard, total_pages
+    return paginated_leaderboard, total_pages
 
 @app.route('/')
 def index():
@@ -221,14 +214,8 @@ def get_data():
         location_slug = request.args.get('location', default='korolev', type=str)
         page = request.args.get('page', default=1, type=int)
         ag_filter = request.args.get('ag', default=None, type=str)
-        year_filter = request.args.get('year', default=None, type=int)
-        season_filter = request.args.get('season', default=None, type=str)
-        month_filter = request.args.get('month', default=None, type=int)
-        race_number_filter = request.args.get('race_number', default=None, type=int)
-        filter_mode = request.args.get('filter', default=None, type=str)
 
-        # Special handling for the main 'all' locations page which has its own pagination logic
-        if location_slug == 'all' and not any([year_filter, season_filter, month_filter, race_number_filter, ag_filter, filter_mode]):
+        if location_slug == 'all':
             leaderboard_data, total_pages = get_all_locations_data(page, ag_filter)
             
             fastest_runner = None
@@ -260,46 +247,47 @@ def get_data():
             }
             return jsonify(response_data)
 
-        # Unified data fetching and filtering for all other cases, including filtered 'all'
-        all_races = db_manager.load_all_results(location_slug=location_slug)
-        races_to_process = all_races
+        year_filter = request.args.get('year', default=None, type=int)
+        season_filter = request.args.get('season', default=None, type=str)
+        month_filter = request.args.get('month', default=None, type=int)
+        race_number_filter = request.args.get('race_number', default=None, type=int)
+        filter_mode = request.args.get('filter', default=None, type=str)
+
+        all_races_for_location = db_manager.load_all_results(DB_PATH, location_slug=location_slug)
+        races_to_process = all_races_for_location
 
         if race_number_filter:
-            # When filtering by race number, we ignore other date filters
-            races_to_process = [r for r in all_races if r.get('race_number') == race_number_filter]
+            races_to_process = [r for r in all_races_for_location if r.get('race_number') == race_number_filter]
         else:
             if filter_mode == 'current_season':
                 now = datetime.now()
                 year_filter = now.year
                 season_filter = get_current_season(now.month)
 
-            # Apply date filters
-            temp_races = all_races
-            if year_filter:
-                if season_filter == 'зима':
-                    previous_year = year_filter - 1
-                    winter_races = []
-                    for race in temp_races:
-                        try:
-                            race_date = datetime.strptime(race['race_date'], '%d.%m.%Y')
-                            if (race_date.year == year_filter and race_date.month in [1, 2]) or \
-                               (race_date.year == previous_year and race_date.month == 12):
-                                winter_races.append(race)
-                        except (ValueError, KeyError):
-                            continue
-                    temp_races = winter_races
-                    if month_filter:
-                         temp_races = [r for r in temp_races if datetime.strptime(r['race_date'], '%d.%m.%Y').month == month_filter]
-                else:
-                    temp_races = [r for r in temp_races if r.get('race_date') and datetime.strptime(r['race_date'], '%d.%m.%Y').year == year_filter]
-                    if season_filter and season_filter in SEASONS:
-                        season_months = SEASONS[season_filter]
-                        temp_races = [r for r in temp_races if r.get('race_date') and datetime.strptime(r['race_date'], '%d.%m.%Y').month in season_months]
-                    if month_filter:
-                        temp_races = [r for r in temp_races if r.get('race_date') and datetime.strptime(r['race_date'], '%d.%m.%Y').month == month_filter]
-            
-            races_to_process = temp_races
-
+            if season_filter == 'зима' and year_filter:
+                previous_year = year_filter - 1
+                winter_races = []
+                for race in all_races_for_location:
+                    try:
+                        race_date = datetime.strptime(race['race_date'], '%d.%m.%Y')
+                        if (race_date.year == year_filter and race_date.month in [1, 2]) or \
+                           (race_date.year == previous_year and race_date.month == 12):
+                            winter_races.append(race)
+                    except (ValueError, KeyError):
+                        continue
+                races_to_process = winter_races
+                if month_filter:
+                    races_to_process = [r for r in races_to_process if datetime.strptime(r['race_date'], '%d.%m.%Y').month == month_filter]
+            else:
+                temp_races = races_to_process
+                if year_filter:
+                    temp_races = [r for r in temp_races if datetime.strptime(r['race_date'], '%d.%m.%Y').year == year_filter]
+                if season_filter and season_filter in SEASONS:
+                    season_months = SEASONS[season_filter]
+                    temp_races = [r for r in temp_races if datetime.strptime(r['race_date'], '%d.%m.%Y').month in season_months]
+                if month_filter:
+                    temp_races = [r for r in temp_races if datetime.strptime(r['race_date'], '%d.%m.%Y').month == month_filter]
+                races_to_process = temp_races
 
         leaderboard_data = calculate_leaderboard(races_to_process, ag_filter)
 
@@ -310,14 +298,10 @@ def get_data():
         top_male, top_female, best_run_info, fastest_time = (None, None, None, float('inf'))
 
         for race in races_to_process:
-            runners_to_check = race.get('data', {}).get('runners', [])
-            if ag_filter and ag_filter != 'all':
-                runners_to_check = [r for r in runners_to_check if f"{r.get('gender')}{r.get('age_group')}" == ag_filter]
-
-            for runner in runners_to_check:
+            for runner in race.get('data', {}).get('runners', []):
                 if (time := runner.get('time_in_seconds')) is not None and time < fastest_time:
                     fastest_time = time
-                    best_run_info = {'name': runner.get('name'), 'time': time, 'race_number': race.get('race_number'), 'date': race.get('race_date'), 'location_slug': race.get('location_slug')}
+                    best_run_info = {'name': runner.get('name'), 'time': time, 'race_number': race.get('race_number'), 'date': race.get('race_date')}
 
         for runner in leaderboard_data:
             if runner['gender'] == 'М' and top_male is None: top_male = runner['name']
@@ -332,7 +316,7 @@ def get_data():
 
         response_data = {
             'leaderboard': leaderboard_data,
-            'pages': 1,  # Simplified pagination for filtered results
+            'pages': 1,
             'metadata': {
                 'top_male': top_male,
                 'top_female': top_female,
@@ -340,9 +324,7 @@ def get_data():
                     'name': best_run_info.get('name') if best_run_info else None,
                     'time': best_run_info.get('time') if best_run_info else None,
                     'race_number': best_run_info.get('race_number') if best_run_info else None,
-                    'age_days': record_age_days,
-                    'location_slug': best_run_info.get('location_slug') if best_run_info else None,
-                    'date': best_run_info.get('date') if best_run_info else None,
+                    'age_days': record_age_days
                 }
             }
         }
@@ -360,7 +342,7 @@ def global_search():
     if not query:
         return jsonify([])
 
-    all_races = db_manager.load_all_results(location_slug='all')
+    all_races = db_manager.load_all_results(DB_PATH, location_slug='all')
     matching_runners = {}
     for race in all_races:
         for runner in race.get('data', {}).get('runners', []):
@@ -378,26 +360,25 @@ def global_search():
 @app.route('/api/locations')
 def get_locations():
     """API эндпоинт для получения списка всех локаций, у которых есть забеги."""
-    locations = db_manager.load_locations_with_races()
+    locations = db_manager.load_locations_with_races(DB_PATH)
     return jsonify(locations)
 
 @app.route('/api/age-groups')
 def get_age_groups():
-    location_slug = request.args.get('location', default=None, type=str)
-    age_groups = db_manager.get_all_age_groups(location_slug=location_slug)
+    age_groups = db_manager.get_all_age_groups(DB_PATH)
     return jsonify(age_groups)
 
 @app.route('/api/years')
 def get_available_years():
     location_slug = request.args.get('location', default='korolev', type=str)
-    all_races = db_manager.load_all_results(location_slug=location_slug)
-    years = {datetime.strptime(race['race_date'], '%d.%m.%Y').year for race in all_races if race.get('data') and race.get('race_date')}
+    all_races = db_manager.load_all_results(DB_PATH, location_slug=location_slug)
+    years = {datetime.strptime(race['race_date'], '%d.%m.%Y').year for race in all_races if race.get('data')}
     return jsonify(sorted(list(years), reverse=True))
 
 @app.route('/api/racedates')
 def get_available_races():
     location_slug = request.args.get('location', default='korolev', type=str)
-    all_races = db_manager.load_all_results(location_slug=location_slug)
+    all_races = db_manager.load_all_results(DB_PATH, location_slug=location_slug)
     races = [
         {"number": race['race_number'], "date": race['race_date']}
         for race in all_races if race.get('race_number') and race.get('race_number') > 0
@@ -411,17 +392,9 @@ def search():
     if not query:
         return render_template('search_results.html', results=[], query=query)
 
-    search_results = db_manager.search_runners(query)
+    search_results = db_manager.search_runners(DB_PATH, query)
     return render_template('search_results.html', results=search_results, query=query)
 
-@app.route('/manifest.json')
-def serve_manifest():
-    return app.send_static_file('manifest.json')
-
-@app.route('/sw.js')
-def serve_sw():
-    return app.send_static_file('sw.js')
-
 if __name__ == '__main__':
-    db_manager.init_db()
+    db_manager.init_db(DB_PATH)
     app.run(debug=True, port=5001)

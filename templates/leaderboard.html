@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏆</text></svg>">
-    <link rel="manifest" href="/manifest.json">
     <title>Кубок 5 вёрст</title>
     <style>
         :root {
@@ -114,10 +113,6 @@
         @media (max-width: 768px) {
             #linksMenuToggle .desktop-only { display: none; }
             #linksMenuToggle .mobile-only { display: block; }
-            .filters-content.active {
-                flex-direction: column;
-                align-items: stretch; /* Make items fill width */
-            }
         }
         @media (max-width: 420px) { 
             .filters-group { gap: 8px; }
@@ -215,7 +210,7 @@
         let isDetailedView = false, isShowingBestTime = true;
         let currentSort = { column: 0, direction: 'asc' };
         let searchQuery = '';
-        let selectedLocationSlug = localStorage.getItem('userSelectedLocation') || null;
+        let selectedLocationSlug = 'korolev';
         let currentPage = 1;
         let totalPages = 1;
         let agFilter = 'all';
@@ -271,20 +266,12 @@
             document.getElementById('detailedViewToggle').addEventListener('change', toggleDetailedView);
 
             // Collapsible filters
-            const filtersContent = document.getElementById('filtersContent');
             document.getElementById('filtersHeader').addEventListener('click', toggleFilters);
             document.getElementById('yearSelector').addEventListener('change', applyFilters);
             document.getElementById('monthSelector').addEventListener('change', applyFilters);
             document.getElementById('raceSelector').addEventListener('change', applyFilters);
             document.getElementById('seasonSelector').addEventListener('change', () => { updateDependentSelectors(); applyFilters(); });
             document.getElementById('agSelector').addEventListener('change', applyFilters);
-
-            filtersContent.addEventListener('change', () => {
-                // On mobile, auto-collapse the filter section after making a selection
-                if (window.innerWidth <= 768) {
-                    filtersContent.classList.remove('active');
-                }
-            });
 
             // Modals
             const infoModal = document.getElementById('infoModal');
@@ -314,15 +301,7 @@
                     allLocations = locations;
                     populateLocationSelector();
                     populateAgSelector();
-
-                    if (selectedLocationSlug) {
-                        onLocationChange(); // A location was saved, load it.
-                    } else {
-                        // First-time visit, prompt user to select.
-                        document.getElementById('locationSelector').innerHTML = 'Выберите вашу локацию ▾';
-                        document.getElementById('loading').innerHTML = 'Для начала выберите вашу домашнюю локацию из списка вверху.';
-                        document.getElementById('location-selector-dropdown').classList.add('active');
-                    }
+                    onLocationChange();
                 }).catch(handleFetchError);
         }
 
@@ -338,7 +317,6 @@
                 raceSelector.style.display = 'none';
                 populateLinksMenu({slug: 'all', name: '5вёрст', url: 'https://5verst.ru/'});
                 initTheme();
-                populateAgSelector(); // Added here
                 applyFilters();
             } else {
                 const location = allLocations.find(l => l.slug === selectedLocationSlug);
@@ -355,7 +333,6 @@
                 ]).then(([years, raceDates]) => {
                     allRaces = raceDates;
                     populateStaticSelectors(years);
-                    populateAgSelector(); // Added here
                     applyFilters();
                     updateCurrentSeasonLabel();
                 }).catch(handleFetchError);
@@ -375,8 +352,7 @@
         }
 
         function populateAgSelector() {
-            const url = selectedLocationSlug ? `/api/age-groups?location=${selectedLocationSlug}` : '/api/age-groups';
-            fetch(url).then(res => res.ok ? res.json() : Promise.reject(res))
+            fetch('/api/age-groups').then(res => res.ok ? res.json() : Promise.reject(res))
                 .then(ageGroups => {
                     const agSelector = document.getElementById('agSelector');
                     agSelector.innerHTML = '<option value="" selected>A/G</option><option value="all">все A/G</option>';
@@ -397,7 +373,6 @@
             e.preventDefault();
             if (e.target.tagName === 'A') {
                 selectedLocationSlug = e.target.dataset.slug;
-                localStorage.setItem('userSelectedLocation', selectedLocationSlug);
                 document.getElementById('location-selector-dropdown').classList.remove('active');
                 onLocationChange();
             }
@@ -458,9 +433,9 @@
             const currentMonth = monthSelector.value;
             monthSelector.innerHTML = '<option value="all">Месяц</option>';
             let relevantMonths = Array.from(MONTHS.entries());
-            if (season && season !== 'all' && SEASON_MONTHS[season]) {
+            if (season !== 'all') {
                 const seasonMonthIndexes = SEASON_MONTHS[season];
-                relevantMonths = relevantMonths.filter(([i, _]) => seasonMonthIndexes.includes(i));
+                if (seasonMonthIndexes) relevantMonths = relevantMonths.filter(([i, _]) => seasonMonthIndexes.includes(i));
             }
             relevantMonths.forEach(([i, name]) => monthSelector.add(new Option(name, i + 1)));
             monthSelector.value = currentMonth;
@@ -470,7 +445,7 @@
             raceSelector.innerHTML = '<option value="all">Забег</option>';
             let filteredRaces = allRaces;
             if (year !== 'all') filteredRaces = filteredRaces.filter(r => r.date.endsWith(year));
-            if (season && season !== 'all' && SEASON_MONTHS[season]) {
+            if (season !== 'all') {
                 const seasonMonthIndexes = SEASON_MONTHS[season].map(m => m + 1);
                 filteredRaces = filteredRaces.filter(r => {
                     const raceMonth = parseInt(r.date.split('.')[1], 10);
@@ -489,33 +464,6 @@
             const isCurrentSeason = document.getElementById('seasonToggle').checked;
             const filtersCollapsible = document.querySelector('.filters-collapsible');
             let params = { location: selectedLocationSlug, page: currentPage, ag: document.getElementById('agSelector').value };
-
-            // Logic to update filtersHeader text
-            const filtersHeader = document.getElementById('filtersHeader');
-            const activeFilters = [];
-
-            const year = document.getElementById('yearSelector').value;
-            if (year !== 'all' && year !== '') activeFilters.push(year);
-
-            const season = document.getElementById('seasonSelector').value;
-            if (season !== 'all' && season !== '') activeFilters.push(season);
-
-            const month = document.getElementById('monthSelector').value;
-            if (month !== 'all' && month !== '') {
-                activeFilters.push(MONTHS[parseInt(month, 10) - 1]);
-            }
-
-            const raceNumber = document.getElementById('raceSelector').value;
-            if (raceNumber !== 'all' && raceNumber !== '') activeFilters.push(`#${raceNumber}`);
-
-            const ag = document.getElementById('agSelector').value;
-            if (ag !== 'all' && ag !== '') activeFilters.push(ag);
-
-            if (activeFilters.length > 0) {
-                filtersHeader.textContent = activeFilters.join(', ') + ' ▾';
-            } else {
-                filtersHeader.textContent = 'Фильтры ▾';
-            }
 
             if (isCurrentSeason) {
                 params.filter = 'current_season';
@@ -580,6 +528,7 @@
         }
         
         function handleFetchError(error) {
+            console.error('Fetch error:', error);
             const loadingDiv = document.getElementById('loading');
             loadingDiv.innerHTML = 'Ошибка загрузки данных. Попробуйте обновить страницу или проверьте консоль сервера.';
             loadingDiv.style.color = 'red';
@@ -864,19 +813,6 @@
         function changePage(page) {
             currentPage = page;
             applyFilters();
-        }
-    </script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('Service Worker registered: ', registration);
-                    })
-                    .catch(error => {
-                        console.log('Service Worker registration failed: ', error);
-                    });
-            });
         }
     </script>
 </body>
